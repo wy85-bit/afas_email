@@ -1,0 +1,20 @@
+name: Copy Hours Script
+on:
+  repository_dispatch:
+    types: [copy_hours_trigger]
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Run Copy Script
+        run: |
+          # Use the user from the 'client_payload' sent by the Flask app
+          python your_script.py --user ${{ github.event.client_payload.user }}
