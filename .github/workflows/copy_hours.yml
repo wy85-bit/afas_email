@@ -17,4 +17,5 @@ jobs:
       - name: Run Copy Script
         run: |
           # Use the user from the 'client_payload' sent by the Flask app
-          python your_script.py --user ${{ github.event.client_payload.user }}
+
+          python main.py --user ${{ github.event.client_payload.user }}
