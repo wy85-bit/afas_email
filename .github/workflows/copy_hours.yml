@@ -18,5 +18,6 @@ jobs:
         run: |
           # Use the user from the 'client_payload' sent by the Flask app
 
-          python api/main.py --user ${{ github.event.client_payload.user }}
+          python api/index.py --user ${{ github.event.client_payload.user }}
+
 
