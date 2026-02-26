@@ -7,17 +7,17 @@ jobs:
   copy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
       
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Run Copy Script
+      - name: Install dependencies
         run: |
-          # Use the user from the 'client_payload' sent by the Flask app
+          pip install requests flask  # Add any other libraries your script needs here
 
-          python api/index.py --user ${{ github.event.client_payload.user }}
-
-
+      - name: Run Copy Script
+        run: python api/index.py --user ${{ github.event.client_payload.user }}
