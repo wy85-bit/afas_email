@@ -5,7 +5,7 @@ import os
 app = Flask(__name__)
 
 # You'll need a GitHub Personal Access Token (PAT) with 'repo' scope
-GITHUB_TOKEN = os.getenv("GH_PAT")
+GITHUB_TOKEN = "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"
 REPO_OWNER = "wy85-bit"
 REPO_NAME = "Afas_email"
 
@@ -33,3 +33,4 @@ def trigger_action():
         return f"<h1>Success!</h1><p>Hours are being copied for {user_id}. You can close this tab.</p>"
     else:
         return f"Error: {response.text}", 500
+
