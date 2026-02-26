@@ -4,7 +4,7 @@ import requests
 from datetime import datetime, timedelta
 
 # Config from your original script
-AFAS_TOKEN = os.getenv("AFAS_TOKEN") # Safely pulled from GitHub Secrets
+AFAS_TOKEN = os.getenv("AFAS_TOKEN", '5BA4B542D3654105BCDB197D8FE4A23C') # Safely pulled from GitHub Secrets
 AFAS_BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 
 def sync_hours(user_id):
