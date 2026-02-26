@@ -4,10 +4,14 @@ import os
 
 app = Flask(__name__)
 
-# You'll need a GitHub Personal Access Token (PAT) with 'repo' scope
-GITHUB_TOKEN = "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"
+# DO NOT paste the string here. Vercel will pull it from the 'Settings' tab.
+GITHUB_TOKEN = os.getenv("GH_PAT") 
 REPO_OWNER = "wy85-bit"
 REPO_NAME = "Afas_email"
+
+@app.route('/')
+def home():
+    return "Listener is active. Use /copy-hours?user=NAME to trigger."
 
 @app.route('/copy-hours')
 def trigger_action():
@@ -16,21 +20,26 @@ def trigger_action():
     if not user_id:
         return "Error: No user specified", 400
 
-    # This is the "Repository Dispatch" API call
+    if not GITHUB_TOKEN:
+        return "Error: GH_PAT environment variable not found on Vercel", 500
+
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/dispatches"
+    
     headers = {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github+json"
+        # Changed 'Bearer' to 'token'
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
     }
+    
     data = {
-        "event_type": "copy_hours_trigger", # Matches the 'types' in your YAML
-        "client_payload": {"user": user_id}  # Passes the username to the Action
+        "event_type": "copy_hours_trigger",
+        "client_payload": {"user": user_id}
     }
 
     response = requests.post(url, headers=headers, json=data)
     
     if response.status_code == 204:
-        return f"<h1>Success!</h1><p>Hours are being copied for {user_id}. You can close this tab.</p>"
+        return f"<h1>Success!</h1><p>Action triggered for {user_id}.</p>"
     else:
-        return f"Error: {response.text}", 500
-
+        # This will help us see if it's STILL a credential error or something else
+        return f"GitHub API Error ({response.status_code}): {response.text}", 500
