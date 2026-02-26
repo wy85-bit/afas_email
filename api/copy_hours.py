@@ -1,31 +1,58 @@
-import sys
 import os
-import requests # You'll likely need this for AFAS
+import sys
+import requests
+from datetime import datetime, timedelta
 
-def main():
-    # 1. Get the user from the command line (passed by GitHub Action)
-    if len(sys.argv) < 3 or sys.argv[1] != '--user':
-        print("Error: No user provided.")
-        return
-    
-    user_id = sys.argv[2]
-    print(f"🚀 Starting work for user: {user_id}")
+# Config from your original script
+AFAS_TOKEN = os.getenv("AFAS_TOKEN") # Safely pulled from GitHub Secrets
+AFAS_BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 
-    # 2. Get your AFAS credentials from environment variables
-    # (We will set these up in GitHub Secrets later)
-    afas_token = os.getenv("AFAS_TOKEN")
-    
-    if not afas_token:
-        print("❌ Error: AFAS_TOKEN not found in environment!")
-        return
+def sync_hours(user_id):
+    headers = {'Authorization': f'AfasToken {AFAS_TOKEN}', 'Content-Type': 'application/json'}
+    try:
+        print(f"Starting sync for {user_id}...")
+        today = datetime.now()
+        last_mon = (today - timedelta(days=today.weekday() + 7)).strftime('%Y-%m-%d')
+        last_sun = (today - timedelta(days=today.weekday() + 1)).strftime('%Y-%m-%d')
 
-    # --- YOUR AFAS LOGIC GOES HERE ---
-    print(f"Connecting to AFAS for {user_id}...")
-    
-    # Example:
-    # response = requests.get(f"https://your-afas-url.com/api/{user_id}", headers=...)
-    
-    print(f"✅ Successfully copied hours from last week to this week for {user_id}!")
+        # 1. Fetch last week's data
+        get_url = f"{AFAS_BASE_URL}/connectors/Profit_Realization?filterfieldids=EmployeeId,DateTime&filtervalues={user_id},{last_mon};{last_sun}&operatortypes=1,9"
+        source_data = requests.get(get_url, headers=headers).json().get('rows', [])
+
+        if not source_data:
+            print(f"No hours found for {user_id} between {last_mon} and {last_sun}.")
+            return
+
+        # 2. Copy to this week
+        for entry in source_data:
+            new_date = (datetime.strptime(entry['Da'], '%Y-%m-%d') + timedelta(days=7)).strftime('%Y-%m-%d')
+            payload = {
+                "PtRealization": {
+                    "Element": {
+                        "Fields": {
+                            "DaTi": new_date, 
+                            "EmId": user_id, 
+                            "PrId": entry.get('PrId', '82'), 
+                            "StTi": entry.get('StTi', '09:00:00'), 
+                            "EnTi": entry.get('EnTi', '17:00:00'), 
+                            "Ap": True, 
+                            "Pr": True
+                        }
+                    }
+                }
+            }
+            res = requests.post(f"{AFAS_BASE_URL}/connectors/PtRealization", json=payload, headers=headers)
+            print(f"Sent entry for {new_date}: Status {res.status_code}")
+
+        print(f"✅ [{user_id}] Sync complete.")
+
+    except Exception as e:
+        print(f"❌ [{user_id}] Sync error: {e}")
 
 if __name__ == "__main__":
-    main()
+    # Get user_id from GitHub Action payload
+    if len(sys.argv) > 2 and sys.argv[1] == '--user':
+        target_user = sys.argv[2]
+        sync_hours(target_user)
+    else:
+        print("No user provided to script.")
