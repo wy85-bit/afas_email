@@ -23,6 +23,7 @@ jobs:
         env:
           AFAS_TOKEN: ${{ secrets.AFAS_TOKEN }} 
         # Point this to copy_hours.py, NOT api/index.py
-        run: python copy_hours.py --user ${{ github.event.client_payload.user }}
+        run: python api/copy_hours.py --user ${{ github.event.client_payload.user }}
+
 
 
