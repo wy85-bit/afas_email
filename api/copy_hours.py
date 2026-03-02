@@ -17,7 +17,8 @@ def sync_hours(user_id):
         return
 
     headers = {
-        'Authorization': f'AfasToken {AFAS_TOKEN}',
+        # 'Authorization': f'AfasToken {AFAS_TOKEN}',
+        'Authorization': f'AfasToken <token>{AFAS_TOKEN}</token>',
         'Content-Type': 'application/json'
     }
 
