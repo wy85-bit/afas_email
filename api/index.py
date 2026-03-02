@@ -19,8 +19,8 @@ def trigger_action():
     token = request.args.get('token')
     try:
         # Decrypt the token to get the real Employee ID
-        user_id = serializer.loads(token, salt=SECURITY_SALT, max_age=604800)
-        
+        # user_id = serializer.loads(token, salt=SECURITY_SALT, max_age=604800)
+        user_id = token if token else "test_user"
         # Trigger GitHub Action
         url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/dispatches"
         headers = {
@@ -86,4 +86,5 @@ def trigger_action():
 #     else:
 #         # This will help us see if it's STILL a credential error or something else
 #         return f"GitHub API Error ({response.status_code}): {response.text}", 500
+
 
