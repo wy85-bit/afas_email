@@ -102,7 +102,7 @@ try:
 
         print(f"🎉 Done! Successfully synced {success_count} entries for {user_id}.")
 
-    except Exception as e:
+except Exception as e:
         print(f"❌ Script Error: {e}")
 
 if __name__ == "__main__":
