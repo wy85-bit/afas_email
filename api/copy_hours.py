@@ -4,9 +4,7 @@ import requests
 from datetime import datetime, timedelta
 import base64
 
-# Encode the token
 # --- CONFIG ---
-# Pulling the token from GitHub Secrets
 AFAS_TOKEN = os.getenv("AFAS_TOKEN")
 AFAS_BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 
@@ -17,21 +15,13 @@ def sync_hours(user_id):
         print("❌ Error: AFAS_TOKEN environment variable is missing in GitHub Secrets!")
         return
 
-    # token_bytes = AFAS_TOKEN.encode('utf-8')
-    # encoded_token = base64.b64encode(token_bytes).decode('utf-8')
+    # Using the specific combined format with a colon
+    headers = {
+        'Authorization': f'AfasToken <token>5BA4B542D3654105BCDB197D8FE4A23C:E4E4E336283D4A69891CA03BE85D4A57</token>',
+        'Content-Type': 'application/json'
+    }
 
-#    headers = {
-#     'Authorization': f'AfasToken <token>{AFAS_TOKEN}</token>',
-#     'Content-Type': 'application/json'
-# }
-headers = {'Authorization': f'AfasToken <token>5BA4B542D3654105BCDB197D8FE4A23C:E4E4E336283D4A69891CA03BE85D4A57</token>'}
-    # Using the XML-tag format which is standard for AFAS hex tokens
-    # headers = {
-    #     'Authorization': f'AfasToken <token>{AFAS_TOKEN}</token>',
-    #     'Content-Type': 'application/json'
-    # }
-
-try:
+    try:
         # 1. Calculate Date Range (Last Monday to Last Sunday)
         today = datetime.now()
         last_mon = (today - timedelta(days=today.weekday() + 7)).strftime('%Y-%m-%d')
@@ -41,7 +31,6 @@ try:
         print(f"📅 Last week was: {last_mon} to {last_sun}")
 
         # 2. Fetch last week's entries
-        # Using the filter logic from your original script
         get_url = (
             f"{AFAS_BASE_URL}/connectors/Profit_Realization"
             f"?filterfieldids=EmployeeId,DateTime"
@@ -68,7 +57,6 @@ try:
         # 3. Post entries to the current week
         success_count = 0
         for entry in source_data:
-            # Shift date forward by 7 days
             original_date = datetime.strptime(entry['Da'], '%Y-%m-%d')
             new_date = (original_date + timedelta(days=7)).strftime('%Y-%m-%d')
             
@@ -102,17 +90,15 @@ try:
 
         print(f"🎉 Done! Successfully synced {success_count} entries for {user_id}.")
 
-except Exception as e:
+    except Exception as e:
         print(f"❌ Script Error: {e}")
 
 if __name__ == "__main__":
-    # Expects: python copy_hours.py --user 90114
     if len(sys.argv) > 2 and sys.argv[1] == '--user':
         target_user = sys.argv[2]
         sync_hours(target_user)
     else:
         print("❌ Error: No User ID provided. Usage: python copy_hours.py --user <ID>")
-
 
 
 # import os
