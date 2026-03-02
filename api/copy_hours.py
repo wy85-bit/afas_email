@@ -17,14 +17,16 @@ def sync_hours(user_id):
     # Based on your screenshot: 5BA4... : E4E4...
     # 1. AUTHENTICATION (The "Double-Wrapped" Method)
     # We combine the keys with a colon, wrap them in <token> tags, THEN encode.
-    api_key = "5BA4B542D3654105BCDB197D8FE4A23C"
+    import base64
+
+    # Try swapping the order: EnvironmentKey:APIKey
     env_key = "E4E4E336283D4A69891CA03BE85D4A57"
+    api_key = "5BA4B542D3654105BCDB197D8FE4A23C"
 
-    # This exact string format is often the "Magic Key"
-    full_token_string = f"<token>{api_key}{env_key}</token>"
+    # Note the <token> tags - these are often required!
+    raw_token = f"<token>{env_key}{api_key}</token>"
 
-    token_bytes = full_token_string.encode('utf-8')
-    encoded_token = base64.b64encode(token_bytes).decode('utf-8')
+    encoded_token = base64.b64encode(raw_token.encode('utf-8')).decode('utf-8')
 
     headers = {
     'Authorization': f'AfasToken {encoded_token}',
