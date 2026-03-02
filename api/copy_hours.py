@@ -31,7 +31,7 @@ headers = {'Authorization': f'AfasToken <token>5BA4B542D3654105BCDB197D8FE4A23C:
     #     'Content-Type': 'application/json'
     # }
 
-    try:
+try:
         # 1. Calculate Date Range (Last Monday to Last Sunday)
         today = datetime.now()
         last_mon = (today - timedelta(days=today.weekday() + 7)).strftime('%Y-%m-%d')
