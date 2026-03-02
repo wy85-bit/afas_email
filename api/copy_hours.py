@@ -34,7 +34,8 @@ def sync_hours(user_id):
 
         # 1. FETCH DATA
         get_url = f"{AFAS_BASE_URL}/connectors/Profit_Realization?filterfieldids=EmployeeId,DateTime&filtervalues={user_id},{last_mon};{last_sun}&operatortypes=1,9"
-        
+
+        print(f"Token starts with: {AFAS_TOKEN[:5]}... and ends with: {AFAS_TOKEN[-5:]}")
         response = requests.get(get_url, headers=headers)
 
         # Check if the GET request worked
