@@ -20,11 +20,11 @@ def sync_hours(user_id):
     # token_bytes = AFAS_TOKEN.encode('utf-8')
     # encoded_token = base64.b64encode(token_bytes).decode('utf-8')
 
-    headers = {
-    'Authorization': f'AfasToken <token>{AFAS_TOKEN}</token>',
-    'Content-Type': 'application/json'
-}
-
+#    headers = {
+#     'Authorization': f'AfasToken <token>{AFAS_TOKEN}</token>',
+#     'Content-Type': 'application/json'
+# }
+headers = {'Authorization': f'AfasToken <token>5BA4B542D3654105BCDB197D8FE4A23C:E4E4E336283D4A69891CA03BE85D4A57</token>'}
     # Using the XML-tag format which is standard for AFAS hex tokens
     # headers = {
     #     'Authorization': f'AfasToken <token>{AFAS_TOKEN}</token>',
