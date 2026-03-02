@@ -16,7 +16,14 @@ REPO_NAME = "Afas_email"
 
 @app.route('/copy-hours')
 def trigger_action():
-    token = request.args.get('token')
+    # Try to get 'token' first, fall back to 'user' for your manual tests
+    user_id = request.args.get('token') or request.args.get('user')
+    
+    if not user_id:
+        return "<h1>❌ Error</h1><p>No user or token provided.</p>", 400
+
+    # ... keep the rest of your GitHub dispatch code here ...
+    # This bypasses the 'serializer.loads' check for now so you don't get 'Expired'
     try:
         # Decrypt the token to get the real Employee ID
         # user_id = serializer.loads(token, salt=SECURITY_SALT, max_age=604800)
@@ -86,5 +93,6 @@ def trigger_action():
 #     else:
 #         # This will help us see if it's STILL a credential error or something else
 #         return f"GitHub API Error ({response.status_code}): {response.text}", 500
+
 
 
