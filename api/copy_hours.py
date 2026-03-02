@@ -2,7 +2,9 @@ import os
 import sys
 import requests
 from datetime import datetime, timedelta
+import base64
 
+# Encode the token
 # --- CONFIG ---
 # Pulling the token from GitHub Secrets
 AFAS_TOKEN = os.getenv("AFAS_TOKEN")
@@ -15,11 +17,19 @@ def sync_hours(user_id):
         print("❌ Error: AFAS_TOKEN environment variable is missing in GitHub Secrets!")
         return
 
-    # Using the XML-tag format which is standard for AFAS hex tokens
+    token_bytes = AFAS_TOKEN.encode('utf-8')
+    encoded_token = base64.b64encode(token_bytes).decode('utf-8')
+
     headers = {
-        'Authorization': f'AfasToken <token>{AFAS_TOKEN}</token>',
-        'Content-Type': 'application/json'
-    }
+    'Authorization': f'AfasToken {encoded_token}',
+    'Content-Type': 'application/json'
+}
+
+    # Using the XML-tag format which is standard for AFAS hex tokens
+    # headers = {
+    #     'Authorization': f'AfasToken <token>{AFAS_TOKEN}</token>',
+    #     'Content-Type': 'application/json'
+    # }
 
     try:
         # 1. Calculate Date Range (Last Monday to Last Sunday)
