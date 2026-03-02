@@ -17,11 +17,11 @@ def sync_hours(user_id):
         print("❌ Error: AFAS_TOKEN environment variable is missing in GitHub Secrets!")
         return
 
-    token_bytes = AFAS_TOKEN.encode('utf-8')
-    encoded_token = base64.b64encode(token_bytes).decode('utf-8')
+    # token_bytes = AFAS_TOKEN.encode('utf-8')
+    # encoded_token = base64.b64encode(token_bytes).decode('utf-8')
 
     headers = {
-    'Authorization': f'AfasToken {encoded_token}',
+    'Authorization': f'AfasToken <token>{AFAS_TOKEN}</token>',
     'Content-Type': 'application/json'
 }
 
