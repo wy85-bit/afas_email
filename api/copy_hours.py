@@ -10,9 +10,15 @@ ENV_KEY = "E4E4E336283D4A69891CA03BE85D4A57"
 AFAS_URL = "https://90114.resttest.afas.online/ProfitRestServices" # Environment 90114
 
 def get_afas_token():
-    """Constructs the specific Base64 token AFAS requires."""
-    # AFAS expects the keys combined and wrapped in XML-style tags
-    raw_token = f"<token>{API_KEY}{ENV_KEY}</token>"
+    """
+    Since we generated a specific user token, we use it directly.
+    Paste the long string you copied from the AFAS wizard below.
+    """
+    # Replace the text inside the quotes with the new token you just copied
+    new_user_token = "<token><version>1</version><data>935A787C2E884574974A3BA1DB4AC80470653AD4DDAD46DB9DF8092D1BA19D1D</data></token>"
+    
+    # We still need to Base64 encode it for the header
+    raw_token = f"<token>{new_user_token}</token>"
     encoded_token = base64.b64encode(raw_token.encode('utf-8')).decode('utf-8')
     return encoded_token
 
