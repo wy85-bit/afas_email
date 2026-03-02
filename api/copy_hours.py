@@ -11,16 +11,29 @@ AFAS_BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 def sync_hours(user_id):
     """Copies hours for a specific user from last week to the current week."""
     
-    if not AFAS_TOKEN:
-        print("❌ Error: AFAS_TOKEN environment variable is missing in GitHub Secrets!")
-        return
+    # if not AFAS_TOKEN:
+    #     print("❌ Error: AFAS_TOKEN environment variable is missing in GitHub Secrets!")
+    #     return
 
     # Using the specific combined format with a colon
+    # headers = {
+    #     'Authorization': f'AfasToken <token>5BA4B542D3654105BCDB197D8FE4A23C:E4E4E336283D4A69891CA03BE85D4A57</token>',
+    #     'Content-Type': 'application/json'
+    # }
+
+
+    # 1. Combine the keys with a colon
+    raw_token = "5BA4B542D3654105BCDB197D8FE4A23C:E4E4E336283D4A69891CA03BE85D4A57"
+    
+    # 2. Base64 encode the combined string
+    token_bytes = raw_token.encode('utf-8')
+    encoded_token = base64.b64encode(token_bytes).decode('utf-8')
+    
+    # 3. Send it WITHOUT the <token> tags
     headers = {
-        'Authorization': f'AfasToken <token>5BA4B542D3654105BCDB197D8FE4A23C:E4E4E336283D4A69891CA03BE85D4A57</token>',
+        'Authorization': f'AfasToken {encoded_token}',
         'Content-Type': 'application/json'
     }
-
     try:
         # 1. Calculate Date Range (Last Monday to Last Sunday)
         today = datetime.now()
