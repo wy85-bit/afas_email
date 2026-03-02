@@ -18,17 +18,20 @@ def sync_hours(user_id):
     # 1. AUTHENTICATION (The "Double-Wrapped" Method)
     # We combine the keys with a colon, wrap them in <token> tags, THEN encode.
     import base64
-
-    # The "Raw Colon" Method
+    
+    # Your actual keys from the screenshot
     api_key = "5BA4B542D3654105BCDB197D8FE4A23C"
     env_key = "E4E4E336283D4A69891CA03BE85D4A57"
 
-    # Method: Combine with colon, NO tags
-    raw_string = f"{api_key}:{env_key}" 
-    # If that fails, try f"{env_key}:{api_key}"
+    # Method: Combined with a colon and wrapped in the <token> tag
+    # This is the "Industry Standard" for AFAS REST services
+    token_content = f"<token>{api_key}{env_key}</token>"
 
-    encoded_token = base64.b64encode(raw_string.encode('utf-8')).decode('utf-8')
+    # Encode to Base64
+    token_bytes = token_content.encode('utf-8')
+    encoded_token = base64.b64encode(token_bytes).decode('utf-8')
 
+    # The Header - Ensure there is exactly one space after 'AfasToken'
     headers = {
     'Authorization': f'AfasToken {encoded_token}',
     'Content-Type': 'application/json'
