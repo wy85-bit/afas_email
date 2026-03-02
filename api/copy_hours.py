@@ -19,19 +19,20 @@ def sync_hours(user_id):
     # We combine the keys with a colon, wrap them in <token> tags, THEN encode.
     import base64
 
-    # Try swapping the order: EnvironmentKey:APIKey
-    env_key = "E4E4E336283D4A69891CA03BE85D4A57"
+    # The "Raw Colon" Method
     api_key = "5BA4B542D3654105BCDB197D8FE4A23C"
+    env_key = "E4E4E336283D4A69891CA03BE85D4A57"
 
-    # Note the <token> tags - these are often required!
-    raw_token = f"<token>{env_key}{api_key}</token>"
+    # Method: Combine with colon, NO tags
+    raw_string = f"{api_key}:{env_key}" 
+    # If that fails, try f"{env_key}:{api_key}"
 
-    encoded_token = base64.b64encode(raw_token.encode('utf-8')).decode('utf-8')
+    encoded_token = base64.b64encode(raw_string.encode('utf-8')).decode('utf-8')
 
     headers = {
     'Authorization': f'AfasToken {encoded_token}',
     'Content-Type': 'application/json'
-}
+    }
 
     try:
         # 2. Calculate Date Range
