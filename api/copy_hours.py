@@ -15,15 +15,21 @@ def sync_hours(user_id):
     # 1. AUTHENTICATION (The Base64 "Secret Knock")
     # We combine the API Key and Environment Key with a colon
     # Based on your screenshot: 5BA4... : E4E4...
-    raw_token = "5BA4B542D3654105BCDB197D8FE4A23C:E4E4E336283D4A69891CA03BE85D4A57"
-    
-    token_bytes = raw_token.encode('utf-8')
+    # 1. AUTHENTICATION (The "Double-Wrapped" Method)
+    # We combine the keys with a colon, wrap them in <token> tags, THEN encode.
+    api_key = "5BA4B542D3654105BCDB197D8FE4A23C"
+    env_key = "E4E4E336283D4A69891CA03BE85D4A57"
+
+    # This exact string format is often the "Magic Key"
+    full_token_string = f"<token>{api_key}{env_key}</token>"
+
+    token_bytes = full_token_string.encode('utf-8')
     encoded_token = base64.b64encode(token_bytes).decode('utf-8')
 
     headers = {
-        'Authorization': f'AfasToken {encoded_token}',
-        'Content-Type': 'application/json'
-    }
+    'Authorization': f'AfasToken {encoded_token}',
+    'Content-Type': 'application/json'
+}
 
     try:
         # 2. Calculate Date Range
