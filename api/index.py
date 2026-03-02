@@ -16,19 +16,15 @@ REPO_NAME = "Afas_email"
 
 @app.route('/copy-hours')
 def trigger_action():
-    # Try to get 'token' first, fall back to 'user' for your manual tests
-    user_id = request.args.get('token') or request.args.get('user')
+    # 1. Grab the ID from the URL (either ?token= or ?user=)
+    # This allows your manual tests to work!
+    target_id = request.args.get('token') or request.args.get('user')
     
-    if not user_id:
-        return "<h1>❌ Error</h1><p>No user or token provided.</p>", 400
+    if not target_id:
+        return "<h1>❌ Error</h1><p>No user or token provided in the URL.</p>", 400
 
-    # ... keep the rest of your GitHub dispatch code here ...
-    # This bypasses the 'serializer.loads' check for now so you don't get 'Expired'
     try:
-        # Decrypt the token to get the real Employee ID
-        # user_id = serializer.loads(token, salt=SECURITY_SALT, max_age=604800)
-        user_id = token if token else "test_user"
-        # Trigger GitHub Action
+        # 2. Trigger GitHub Action
         url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/dispatches"
         headers = {
             "Authorization": f"token {GITHUB_TOKEN}",
@@ -36,14 +32,20 @@ def trigger_action():
         }
         data = {
             "event_type": "copy_hours_trigger",
-            "client_payload": {"user": user_id} 
+            "client_payload": {"user": target_id} 
         }
         
-        requests.post(url, headers=headers, json=data)
-        return "<h1>✅ Sync Started</h1><p>GitHub is now copying your hours!</p>"
-    except Exception as e:
-        return f"<h1>❌ Link Expired or Invalid</h1>", 403
+        # Send the request to GitHub
+        resp = requests.post(url, headers=headers, json=data)
+        
+        if resp.status_code == 204:
+            return f"<h1>✅ Sync Started</h1><p>GitHub is now copying hours for {target_id}!</p>"
+        else:
+            return f"<h1>❌ GitHub Error</h1><p>{resp.text}</p>", resp.status_code
 
+    except Exception as e:
+        # This only triggers if the code itself crashes
+        return f"<h1>❌ Script Error</h1><p>{str(e)}</p>", 500
 
 
 
@@ -93,6 +95,7 @@ def trigger_action():
 #     else:
 #         # This will help us see if it's STILL a credential error or something else
 #         return f"GitHub API Error ({response.status_code}): {response.text}", 500
+
 
 
 
