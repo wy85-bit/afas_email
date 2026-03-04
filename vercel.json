@@ -1,16 +1,8 @@
 {
   "version": 2,
-  "functions": {
-    "api/*.py": {
-      "runtime": "python3.9"
-    }
-  },
-  "routes": [
-    { "src": "/api/approve", "dest": "/api/approve.py" },
-    { "src": "/api/send-all", "dest": "/api/send_emails.py" },
-    { "src": "/api/load-all", "dest": "/api/load_hour_data.py" }
-  ],
   "rewrites": [
-    { "source": "/", "destination": "/public/index.html" }
+    { "source": "/", "destination": "/api/load_hour_data.py" },
+    { "source": "/approve", "destination": "/api/approve.py" },
+    { "source": "/send-all", "destination": "/api/send_emails.py" }
   ]
 }
