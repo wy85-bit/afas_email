@@ -2,7 +2,8 @@ import requests
 import json
 
 # Your Vercel App URL
-VERCEL_APP_URL = "https://your-project-name.vercel.app"
+# VERCEL_APP_URL = "https://your-project-name.vercel.app"
+VERCEL_APP_URL = 'https://afas-email.vercel.app/''
 
 def generate_approval_email(employee_id, employee_name, hours_count):
     """Creates the content for the email with the unique approval link."""

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AFAS Sync Dashboard</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f7f6; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #004a99; color: white; }
+        .status-done { color: green; font-weight: bold; }
+        .status-wait { color: orange; }
+    </style>
+</head>
+<body>
+    <h2>🚀 Employee Sync Status (Env: 90114)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Hours Found</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="dashboard-rows">
+            </tbody>
+    </table>
+
+    <script>
+        async function loadDashboard() {
+            // This calls your load_hour_data.py logic via Vercel
+            const response = await fetch('/api/load-all'); 
+            const data = await response.json();
+            const tableBody = document.getElementById('dashboard-rows');
+
+            Object.keys(data).forEach(empId => {
+                const info = data[empId];
+                const row = `<tr>
+                    <td>${empId}</td>
+                    <td>${info.name}</td>
+                    <td>${info.hours_to_copy.length}</td>
+                    <td class="status-wait">Pending Approval</td>
+                </tr>`;
+                tableBody.innerHTML += row;
+            });
+        }
+        loadDashboard();
+    </script>
+</body>
+</html>
