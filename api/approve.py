@@ -1,5 +1,5 @@
 from http.server import BaseHTTPRequestHandler
-import base64, requests, json
+import base64, requests, json, datetime
 from urllib.parse import urlparse, parse_qs
 
 # --- CONFIGURATION ---
@@ -11,35 +11,33 @@ class handler(BaseHTTPRequestHandler):
         query = parse_qs(urlparse(self.path).query)
         user_id = query.get('user_id', [None])[0]
         
-        # 1. Prepare Headers
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 2. Fetch ALL rows (more reliable than URL filtering)
+            # 1. Fetch the rows
             afas_resp = requests.get(f"{BASE_URL}/Profit_Realization", headers=headers)
-            all_data = afas_resp.json()
-            all_rows = all_data.get('rows', [])
-
-            # 3. Filter for the specific employee in Python
+            all_rows = afas_resp.json().get('rows', [])
             my_rows = [r for r in all_rows if str(r.get('EmployeeId')) == str(user_id)]
             
+            # 2. Get Today's Date in AFAS format (YYYY-MM-DD)
+            today = datetime.datetime.now().strftime("%Y-%m-%d")
+            
             success_count = 0
-            errors = []
+            error_details = []
 
-            # 4. Map and Push to AFAS UpdateConnector
+            # 3. Push to AFAS with the Date Fix
             for row in my_rows:
-                # AFAS UpdateConnectors use specific short codes (EmId, PrId, etc.)
                 payload = {
                     "PtRealization": {
                         "Element": {
                             "Fields": {
-                                "EmId": row.get('EmployeeId'),   #
-                                "PrId": row.get('ProjectID'),    #
-                                "ItId": row.get('ItemCodeId'),   #
-                                "UnId": row.get('UnitId'),       #
-                                "Qu": row.get('QuantityUnit'),   #
-                                "Da": row.get('DateTime')        #
+                                "EmId": row.get('EmployeeId'),
+                                "PrId": row.get('ProjectID'),
+                                "ItId": row.get('ItemCodeId'),
+                                "UnId": row.get('UnitId'),
+                                "Qu": row.get('QuantityUnit'),
+                                "Da": today  # FIX: Using today's date instead of 2020!
                             }
                         }
                     }
@@ -49,20 +47,19 @@ class handler(BaseHTTPRequestHandler):
                 if post_resp.status_code in [200, 201]:
                     success_count += 1
                 else:
-                    errors.append(post_resp.text)
+                    error_details.append(post_resp.json().get('externalMessage', 'Unknown Error'))
 
-            # 5. Show the Final Success Page
+            # 4. Final Success Page
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            status_color = "#0070f3" if success_count > 0 else "#e00"
             html = f"""
             <html><body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-                <h1 style="color: {status_color};">{'✅ Success!' if success_count > 0 else '⚠️ Note'}</h1>
+                <h1 style="color: #0070f3;">{'✅ Success!' if success_count > 0 else '❌ Action Needed'}</h1>
                 <p style="font-size: 1.2em;">Processed <b>{success_count}</b> entries for Employee <b>{user_id}</b>.</p>
-                <p>Found {len(my_rows)} total records for this ID in AFAS 90114.</p>
-                {"<p style='color:red'>Errors: " + str(errors) + "</p>" if errors else ""}
+                {f'<p style="color:red"><b>AFAS says:</b> {error_details[0]}</p>' if error_details else ''}
+                <p style="color: #666;">Entries were sent with date: {today}</p>
             </body></html>
             """
             self.wfile.write(html.encode('utf-8'))
@@ -70,7 +67,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             self.send_response(500)
             self.end_headers()
-            self.wfile.write(f"Error logic: {str(e)}".encode())
+            self.wfile.write(str(e).encode())
 
 
 # from http.server import BaseHTTPRequestHandler
