@@ -11,8 +11,8 @@ AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131E
 AFAS_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors/Profit_Realization"
 
 # --- GMAIL SETTINGS ---
-GMAIL_USER = "your-email@gmail.com"  # <--- Change to your Gmail address
-GMAIL_APP_PASS = "your-16-char-code" # <--- Change to your App Password
+GMAIL_USER = "winnifred.yap@gmail.com"  # <--- Change to your Gmail address
+GMAIL_APP_PASS = "rhtf ruvr eccw iwok # <--- Change to your App Password
 
 def get_afas_headers():
     """Encodes the token for AFAS authorization."""
