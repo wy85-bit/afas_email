@@ -19,51 +19,34 @@ def get_afas_headers():
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        """This function triggers when you visit the URL in your browser."""
         headers = get_afas_headers()
         url = f"{BASE_URL}/connectors/Profit_Realization"
         
         try:
-            # 1. Call AFAS
             response = requests.get(url, headers=headers)
             
+            # SUCCESS PATH
             if response.status_code == 200:
-                data = response.json()
-                rows = data.get('rows', [])
-                
-                # 2. Group the data by Employee
-                grouped_data = {}
-                for row in rows:
-                    emp_id = row.get('Medewerker')
-                    if emp_id not in grouped_data:
-                        grouped_data[emp_id] = {
-                            "name": row.get('Naam', 'Unknown'),
-                            "email": row.get('Email', None),
-                            "hours_to_copy": []
-                        }
-                    grouped_data[emp_id]["hours_to_copy"].append({
-                        "project": row.get('Project'),
-                        "description": row.get('Toelichting'),
-                        "units": row.get('Aantal')
-                    })
-                
-                # 3. Send successful response to browser
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps(grouped_data).encode())
+                self.wfile.write(json.dumps(response.json()).encode())
             
+            # ERROR PATH - Let's see the details!
             else:
-                # Handle AFAS errors (like 401 Unauthorized)
-                self.send_response(response.status_code)
+                self.send_response(200) # Sending 200 so the browser shows the error clearly
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
-                error_msg = {"error": "AFAS Error", "details": response.text}
-                self.wfile.write(json.dumps(error_msg).encode())
+                
+                # We extract the full text from AFAS here
+                error_info = {
+                    "status_code": response.status_code,
+                    "afas_raw_error": response.text, 
+                    "used_url": url
+                }
+                self.wfile.write(json.dumps(error_info).encode())
 
         except Exception as e:
-            # Handle Python crashes
             self.send_response(500)
-            self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode())
+            self.wfile.write(str(e).encode())
