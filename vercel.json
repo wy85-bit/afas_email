@@ -1,14 +1,10 @@
 {
+  "version": 2,
   "functions": {
     "api/*.py": {
       "runtime": "vercel-python"
     }
   },
-  "routes": [
-    { "src": "/api/approve", "dest": "/api/approve.py" },
-    { "src": "/api/send-all", "dest": "/api/send_emails.py" },
-    { "src": "/api/load-all", "dest": "/api/load_hour_data.py" }
-  ],
   "rewrites": [
     { "source": "/", "destination": "/public/index.html" }
   ]
