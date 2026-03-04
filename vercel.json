@@ -1,9 +1,12 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/", "destination": "/api/load_hour_data.py" },
-    { "source": "/api/load_hour_data", "destination": "/api/load_hour_data.py" },
-    { "source": "/api/approve", "destination": "/api/approve.py" },
-    { "source": "/api/send_emails", "destination": "/api/send_emails.py" }
+  "builds": [
+    { "src": "api/*.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/", "dest": "api/load_hour_data.py" },
+    { "src": "/api/load_hour_data", "dest": "api/load_hour_data.py" },
+    { "src": "/api/approve", "dest": "api/approve.py" },
+    { "src": "/api/send_emails", "dest": "api/send_emails.py" }
   ]
 }
