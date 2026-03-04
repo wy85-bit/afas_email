@@ -9,19 +9,17 @@ ENV_KEY = "E4E4E336283D4A69891CA03BE85D4A57"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 
 def get_afas_headers():
-    # Ensure there are NO extra spaces around these keys
-    api_clean = API_KEY.strip()
-    env_clean = ENV_KEY.strip()
+    # This is the EXACT string you just gave me
+    raw_token = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
     
-    # AFAS expects exactly this format inside the Base64
-    raw_token = f"<token>{api_clean}{env_clean}</token>"
+    # We must encode the WHOLE XML string into Base64
     encoded_token = base64.b64encode(raw_token.encode('utf-8')).decode('utf-8')
     
     return {
         'Authorization': f'AfasToken {encoded_token}',
         'Content-Type': 'application/json'
     }
-
+    
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         headers = get_afas_headers()
