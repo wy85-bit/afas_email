@@ -5,7 +5,7 @@ import requests
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         # --- SAFETY SETTINGS ---
-        MY_PRIVATE_EMAIL = "your-email@example.com" # <--- PUT YOUR EMAIL HERE!
+        MY_PRIVATE_EMAIL = "winnie.yap@veneficus.nl" # <--- PUT YOUR EMAIL HERE!
         
         # In a real run, we'd loop through all 50 people.
         # For this test, we are only sending ONE email to YOU.
