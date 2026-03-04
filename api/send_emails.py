@@ -5,58 +5,52 @@ import json
 import smtplib
 from email.message import EmailMessage
 
-# --- CONFIGURATION ---
+# --- YOUR SAVED CONFIG ---
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 AFAS_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors/Profit_Realization"
-VERCEL_URL = "https://afas-email.vercel.app" # Your Vercel domain
 
-# --- GMAIL SETTINGS ---
-GMAIL_USER = "your-email@gmail.com" 
-GMAIL_APP_PASS = "your-16-char-code" 
-
-def get_afas_headers():
-    encoded_token = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
-    return {'Authorization': f'AfasToken {encoded_token}', 'Content-Type': 'application/json'}
+# --- CREDENTIALS (Double check these!) ---
+GMAIL_USER = "winnifred.yap@gmail.com"
+GMAIL_APP_PASS = "rhtf ruvr eccw iwok" # Your 16-character Gmail App Password
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
-            # 1. Fetch real data to get a sample ID for the button
-            headers = get_afas_headers()
-            afas_resp = requests.get(AFAS_URL, headers=headers)
+            # 1. Fetch data from AFAS
+            encoded_token = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
+            afas_resp = requests.get(AFAS_URL, headers={'Authorization': f'AfasToken {encoded_token}'})
             data = afas_resp.json()
             rows = data.get('rows', [])
             
-            # For this test, we'll use the first ID found (e.g., 1000077)
-            sample_id = rows[0].get('Medewerker', '90114') if rows else '90114'
+            # Let's use the first employee ID we find in your data
+            sample_id = rows[0].get('Medewerker', 'Unknown') if rows else '90114'
 
-            # 2. Build the HTML Content with a Button
+            # 2. Build the HTML Email with a styled button
             html_content = f"""
             <html>
-                <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-                    <h2>Hello Winnie! 🕒</h2>
-                    <p>We found hour records in AFAS that need to be copied.</p>
-                    <div style="margin: 20px 0;">
-                        <a href="{VERCEL_URL}/api/approve?user_id={sample_id}" 
-                           style="background-color: #0070f3; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
-                           🚀 Copy my hours for {sample_id}
+                <body style="font-family: sans-serif; padding: 20px;">
+                    <h2 style="color: #333;">Action Required: AFAS Hour Update</h2>
+                    <p>Hi Winnie! We found your hours in environment 90114.</p>
+                    <p>Click the button below to copy them automatically:</p>
+                    <div style="margin-top: 25px;">
+                        <a href="https://afas-email.vercel.app/api/approve?user_id={sample_id}" 
+                           style="background: #0070f3; color: white; padding: 14px 25px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                           🚀 Copy Hours for {sample_id}
                         </a>
                     </div>
-                    <p style="font-size: 0.8em; color: #666;">This is a test from your Vercel deployment.</p>
                 </body>
             </html>
             """
 
-            # 3. Create the Email
+            # 3. Setup the Email message
             msg = EmailMessage()
-            msg['Subject'] = "Action Required: Copy your AFAS Hours"
+            msg['Subject'] = "🚀 Test: Copy your AFAS Hours"
             msg['From'] = GMAIL_USER
-            msg['To'] = GMAIL_USER # Still safety mode!
-            
-            msg.set_content("Please use an HTML-capable email client to view this message.")
+            msg['To'] = GMAIL_USER # Keeping it safe—sending to YOU!
+            msg.set_content("Please view this in an HTML-compatible email client.")
             msg.add_alternative(html_content, subtype='html')
 
-            # 4. Send
+            # 4. Send it!
             with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
                 smtp.login(GMAIL_USER, GMAIL_APP_PASS)
                 smtp.send_message(msg)
@@ -64,10 +58,11 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({{"status": "HTML Email Sent!"}}).encode())
+            self.wfile.write(json.dumps({{"status": "Success", "sent_to": GMAIL_USER}}).encode())
 
         except Exception as e:
             self.send_response(500)
+            self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({{"error": str(e)}}).encode())
 
