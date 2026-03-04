@@ -6,78 +6,73 @@ from urllib.parse import urlparse, parse_qs
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
 
-def get_headers():
-    """Encodes the working token for environment 90114."""
-    token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
-    return {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
-
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # 1. Get the Employee ID from the button click
         query = parse_qs(urlparse(self.path).query)
         user_id = query.get('user_id', [None])[0]
-
-        if not user_id or user_id == "Unknown":
-            self.send_response(400)
-            self.end_headers()
-            self.wfile.write(b"Error: No valid Employee ID found.")
-            return
+        
+        # 1. Prepare Headers
+        token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
+        headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            headers = get_headers()
-            
-            # 2. Fetch the specific hour rows for this user
-            # We filter by EmployeeId so we only copy the right person's hours
-            get_url = f"{BASE_URL}/Profit_Realization?filterfieldids=EmployeeId&filtervalues={user_id}"
-            afas_resp = requests.get(get_url, headers=headers)
-            data = afas_resp.json()
-            rows = data.get('rows', [])
+            # 2. Fetch ALL rows (more reliable than URL filtering)
+            afas_resp = requests.get(f"{BASE_URL}/Profit_Realization", headers=headers)
+            all_data = afas_resp.json()
+            all_rows = all_data.get('rows', [])
 
-            # 3. Process each row and POST it back to AFAS
+            # 3. Filter for the specific employee in Python
+            my_rows = [r for r in all_rows if str(r.get('EmployeeId')) == str(user_id)]
+            
             success_count = 0
-            for row in rows:
-                # We map the data we found in your previous test
-                # to the fields AFAS needs for a new entry.
+            errors = []
+
+            # 4. Map and Push to AFAS UpdateConnector
+            for row in my_rows:
+                # AFAS UpdateConnectors use specific short codes (EmId, PrId, etc.)
                 payload = {
                     "PtRealization": {
                         "Element": {
                             "Fields": {
-                                "EmId": row.get('EmployeeId'),   # Employee ID
-                                "PrId": row.get('ProjectID'),    # Project ID
-                                "ItId": row.get('ItemCodeId'),   # Item Code
-                                "Un": row.get('QuantityUnit'),   # Number of units
-                                "Da": row.get('DateTime')        # The date
+                                "EmId": row.get('EmployeeId'),   #
+                                "PrId": row.get('ProjectID'),    #
+                                "ItId": row.get('ItemCodeId'),   #
+                                "UnId": row.get('UnitId'),       #
+                                "Qu": row.get('QuantityUnit'),   #
+                                "Da": row.get('DateTime')        #
                             }
                         }
                     }
                 }
                 
-                # Push the data to the UpdateConnector
-                post_url = f"{BASE_URL}/PtRealization"
-                post_resp = requests.post(post_url, headers=headers, json=payload)
-                
+                post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
                 if post_resp.status_code in [200, 201]:
                     success_count += 1
+                else:
+                    errors.append(post_resp.text)
 
-            # 4. Show the clean Success Page
+            # 5. Show the Final Success Page
             self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8') # Fixes the âœ... encoding
+            self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
+            status_color = "#0070f3" if success_count > 0 else "#e00"
             html = f"""
             <html><body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-                <h1 style="color: #0070f3;">✅ Mission Accomplished!</h1>
-                <p style="font-size: 1.2em;">Successfully copied <b>{success_count}</b> hour entries for Employee <b>{user_id}</b>.</p>
-                <p style="color: #666;">The AFAS environment 90114 has been updated.</p>
+                <h1 style="color: {status_color};">{'✅ Success!' if success_count > 0 else '⚠️ Note'}</h1>
+                <p style="font-size: 1.2em;">Processed <b>{success_count}</b> entries for Employee <b>{user_id}</b>.</p>
+                <p>Found {len(my_rows)} total records for this ID in AFAS 90114.</p>
+                {"<p style='color:red'>Errors: " + str(errors) + "</p>" if errors else ""}
             </body></html>
             """
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
-            # If something fails, we show the exact error (like the one in image_bdad40.png)
             self.send_response(500)
             self.end_headers()
-            self.wfile.write(str(e).encode())
+            self.wfile.write(f"Error logic: {str(e)}".encode())
+
+
 # from http.server import BaseHTTPRequestHandler
 # import json
 # from urllib.parse import urlparse, parse_qs
