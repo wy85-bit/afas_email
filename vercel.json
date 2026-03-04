@@ -2,7 +2,8 @@
   "version": 2,
   "rewrites": [
     { "source": "/", "destination": "/api/load_hour_data.py" },
-    { "source": "/approve", "destination": "/api/approve.py" },
-    { "source": "/send-all", "destination": "/api/send_emails.py" }
+    { "source": "/api/load_hour_data", "destination": "/api/load_hour_data.py" },
+    { "source": "/api/approve", "destination": "/api/approve.py" },
+    { "source": "/api/send_emails", "destination": "/api/send_emails.py" }
   ]
 }
