@@ -17,61 +17,67 @@ class handler(BaseHTTPRequestHandler):
         query = parse_qs(urlparse(self.path).query)
         user_id = query.get('user_id', [None])[0]
 
-        if not user_id:
+        if not user_id or user_id == "Unknown":
             self.send_response(400)
             self.end_headers()
-            self.wfile.write(b"Error: No User ID provided.")
+            self.wfile.write(b"Error: No valid Employee ID found.")
             return
 
         try:
-            # 2. Fetch the specific hours for this user to "copy"
             headers = get_headers()
+            
+            # 2. Fetch the specific hour rows for this user
+            # We filter by EmployeeId so we only copy the right person's hours
             get_url = f"{BASE_URL}/Profit_Realization?filterfieldids=EmployeeId&filtervalues={user_id}"
-            afas_data = requests.get(get_url, headers=headers).json()
-            rows = afas_data.get('rows', [])
+            afas_resp = requests.get(get_url, headers=headers)
+            data = afas_resp.json()
+            rows = data.get('rows', [])
 
-            # 3. Prepare the POST for the UpdateConnector
-            # We are assuming 'PtRealization' is your target UpdateConnector
+            # 3. Process each row and POST it back to AFAS
             success_count = 0
             for row in rows:
+                # We map the data we found in your previous test
+                # to the fields AFAS needs for a new entry.
                 payload = {
                     "PtRealization": {
                         "Element": {
                             "Fields": {
-                                "EmId": row['EmployeeId'],      #
-                                "PrId": row['ProjectID'],       #
-                                "ItId": row['ItemCodeId'],      #
-                                "Unit": row['QuantityUnit'],    #
-                                "Da": row['DateTime']           #
+                                "EmId": row.get('EmployeeId'),   # Employee ID
+                                "PrId": row.get('ProjectID'),    # Project ID
+                                "ItId": row.get('ItemCodeId'),   # Item Code
+                                "Un": row.get('QuantityUnit'),   # Number of units
+                                "Da": row.get('DateTime')        # The date
                             }
                         }
                     }
                 }
                 
-                # The actual "PUSH" to AFAS
+                # Push the data to the UpdateConnector
                 post_url = f"{BASE_URL}/PtRealization"
                 post_resp = requests.post(post_url, headers=headers, json=payload)
+                
                 if post_resp.status_code in [200, 201]:
                     success_count += 1
 
-            # 4. Show the updated Success Page
+            # 4. Show the clean Success Page
             self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.send_header('Content-type', 'text/html; charset=utf-8') # Fixes the âœ... encoding
             self.end_headers()
             
-            self.wfile.write(f"""
+            html = f"""
             <html><body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
                 <h1 style="color: #0070f3;">✅ Mission Accomplished!</h1>
-                <p>Successfully copied <b>{success_count}</b> hour entries for Employee <b>{user_id}</b>.</p>
-                <p>The AFAS 90114 environment has been updated.</p>
+                <p style="font-size: 1.2em;">Successfully copied <b>{success_count}</b> hour entries for Employee <b>{user_id}</b>.</p>
+                <p style="color: #666;">The AFAS environment 90114 has been updated.</p>
             </body></html>
-            """.encode('utf-8'))
+            """
+            self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
+            # If something fails, we show the exact error (like the one in image_bdad40.png)
             self.send_response(500)
             self.end_headers()
             self.wfile.write(str(e).encode())
-
 # from http.server import BaseHTTPRequestHandler
 # import json
 # from urllib.parse import urlparse, parse_qs
