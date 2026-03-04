@@ -1,28 +1,76 @@
 from http.server import BaseHTTPRequestHandler
-import json
+import base64, requests, json
 from urllib.parse import urlparse, parse_qs
+
+# --- CONFIGURATION ---
+AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
+BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
+
+def get_headers():
+    """Encodes the working token for environment 90114."""
+    token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
+    return {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        # 1. Get the Employee ID from the button click
         query = parse_qs(urlparse(self.path).query)
-        user_id = query.get('user_id', ['Unknown'])[0]
+        user_id = query.get('user_id', [None])[0]
 
-        self.send_response(200)
-        # Added charset=utf-8 to fix the funny characters!
-        self.send_header('Content-type', 'text/html; charset=utf-8') 
-        self.end_headers()
-        
-        success_page = f"""
-        <html>
-            <head><meta charset="UTF-8"></head>
-            <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-                <h1 style="color: #0070f3;">✅ Success!</h1>
-                <p style="font-size: 1.2em;">Hours for Employee <b>{user_id}</b> have been processed in AFAS 90114.</p>
-                <p style="color: #666;">You can safely close this window now.</p>
-            </body>
-        </html>
-        """
-        self.wfile.write(success_page.encode('utf-8'))
+        if not user_id:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b"Error: No User ID provided.")
+            return
+
+        try:
+            # 2. Fetch the specific hours for this user to "copy"
+            headers = get_headers()
+            get_url = f"{BASE_URL}/Profit_Realization?filterfieldids=EmployeeId&filtervalues={user_id}"
+            afas_data = requests.get(get_url, headers=headers).json()
+            rows = afas_data.get('rows', [])
+
+            # 3. Prepare the POST for the UpdateConnector
+            # We are assuming 'PtRealization' is your target UpdateConnector
+            success_count = 0
+            for row in rows:
+                payload = {
+                    "PtRealization": {
+                        "Element": {
+                            "Fields": {
+                                "EmId": row['EmployeeId'],      #
+                                "PrId": row['ProjectID'],       #
+                                "ItId": row['ItemCodeId'],      #
+                                "Unit": row['QuantityUnit'],    #
+                                "Da": row['DateTime']           #
+                            }
+                        }
+                    }
+                }
+                
+                # The actual "PUSH" to AFAS
+                post_url = f"{BASE_URL}/PtRealization"
+                post_resp = requests.post(post_url, headers=headers, json=payload)
+                if post_resp.status_code in [200, 201]:
+                    success_count += 1
+
+            # 4. Show the updated Success Page
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.end_headers()
+            
+            self.wfile.write(f"""
+            <html><body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+                <h1 style="color: #0070f3;">✅ Mission Accomplished!</h1>
+                <p>Successfully copied <b>{success_count}</b> hour entries for Employee <b>{user_id}</b>.</p>
+                <p>The AFAS 90114 environment has been updated.</p>
+            </body></html>
+            """.encode('utf-8'))
+
+        except Exception as e:
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(str(e).encode())
 
 # from http.server import BaseHTTPRequestHandler
 # import json
@@ -30,61 +78,87 @@ class handler(BaseHTTPRequestHandler):
 
 # class handler(BaseHTTPRequestHandler):
 #     def do_GET(self):
-#         # 1. Parse the User ID from the URL
 #         query = parse_qs(urlparse(self.path).query)
 #         user_id = query.get('user_id', ['Unknown'])[0]
 
 #         self.send_response(200)
-#         self.send_header('Content-type', 'text/html')
+#         # Added charset=utf-8 to fix the funny characters!
+#         self.send_header('Content-type', 'text/html; charset=utf-8') 
 #         self.end_headers()
         
-#         # 2. Show a nice success message
 #         success_page = f"""
-#         <html><body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-#             <h1 style="color: #0070f3;">✅ Success!</h1>
-#             <p>Hours for Employee <b>{user_id}</b> have been processed in AFAS 90114.</p>
-#             <p>You can close this window now.</p>
-#         </body></html>
+#         <html>
+#             <head><meta charset="UTF-8"></head>
+#             <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+#                 <h1 style="color: #0070f3;">✅ Success!</h1>
+#                 <p style="font-size: 1.2em;">Hours for Employee <b>{user_id}</b> have been processed in AFAS 90114.</p>
+#                 <p style="color: #666;">You can safely close this window now.</p>
+#             </body>
+#         </html>
 #         """
-#         self.wfile.write(success_page.encode())
-
+#         self.wfile.write(success_page.encode('utf-8'))
 
 # # from http.server import BaseHTTPRequestHandler
-# # from urllib.parse import urlparse, parse_qs
 # # import json
-# # # Import your logic from the file we named earlier
-# # from post_hours_for_employee import post_hours, get_auth_header 
+# # from urllib.parse import urlparse, parse_qs
 
 # # class handler(BaseHTTPRequestHandler):
 # #     def do_GET(self):
-# #         # 1. Parse the user_id from the URL link
-# #         query_components = parse_qs(urlparse(self.path).query)
-# #         user_id = query_components.get("user_id", [None])[0]
+# #         # 1. Parse the User ID from the URL
+# #         query = parse_qs(urlparse(self.path).query)
+# #         user_id = query.get('user_id', ['Unknown'])[0]
 
-# #         if not user_id:
-# #             self.send_response(400)
-# #             self.end_headers()
-# #             self.wfile.write(b"Error: No User ID provided.")
-# #             return
-
-# #         # 2. Logic: In a real app, you'd fetch the saved hours from a DB here.
-# #         # For this example, let's assume we have the hours ready to go.
-# #         # This calls your AFAS UpdateConnector logic
-# #         dummy_hours = [{"Project": "1001", "Aantal": 8.0, "Toelichting": "Copied via Email"}]
-# #         result = post_hours(user_id, dummy_hours)
-
-# #         # 3. Respond to the employee in the browser
 # #         self.send_response(200)
 # #         self.send_header('Content-type', 'text/html')
 # #         self.end_headers()
         
-# #         response_html = f"""
-# #         <html>
-# #             <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-# #                 <h1>✅ Success!</h1>
-# #                 <p>Hi {user_id}, your hours have been copied to AFAS environment 90114.</p>
-# #                 <p>Processed {result['success']} entries.</p>
-# #             </body>
-# #         </html>
+# #         # 2. Show a nice success message
+# #         success_page = f"""
+# #         <html><body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+# #             <h1 style="color: #0070f3;">✅ Success!</h1>
+# #             <p>Hours for Employee <b>{user_id}</b> have been processed in AFAS 90114.</p>
+# #             <p>You can close this window now.</p>
+# #         </body></html>
 # #         """
-# #         self.wfile.write(response_html.encode())
+# #         self.wfile.write(success_page.encode())
+
+
+# # # from http.server import BaseHTTPRequestHandler
+# # # from urllib.parse import urlparse, parse_qs
+# # # import json
+# # # # Import your logic from the file we named earlier
+# # # from post_hours_for_employee import post_hours, get_auth_header 
+
+# # # class handler(BaseHTTPRequestHandler):
+# # #     def do_GET(self):
+# # #         # 1. Parse the user_id from the URL link
+# # #         query_components = parse_qs(urlparse(self.path).query)
+# # #         user_id = query_components.get("user_id", [None])[0]
+
+# # #         if not user_id:
+# # #             self.send_response(400)
+# # #             self.end_headers()
+# # #             self.wfile.write(b"Error: No User ID provided.")
+# # #             return
+
+# # #         # 2. Logic: In a real app, you'd fetch the saved hours from a DB here.
+# # #         # For this example, let's assume we have the hours ready to go.
+# # #         # This calls your AFAS UpdateConnector logic
+# # #         dummy_hours = [{"Project": "1001", "Aantal": 8.0, "Toelichting": "Copied via Email"}]
+# # #         result = post_hours(user_id, dummy_hours)
+
+# # #         # 3. Respond to the employee in the browser
+# # #         self.send_response(200)
+# # #         self.send_header('Content-type', 'text/html')
+# # #         self.end_headers()
+        
+# # #         response_html = f"""
+# # #         <html>
+# # #             <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+# # #                 <h1>✅ Success!</h1>
+# # #                 <p>Hi {user_id}, your hours have been copied to AFAS environment 90114.</p>
+# # #                 <p>Processed {result['success']} entries.</p>
+# # #             </body>
+# # #         </html>
+# # #         """
+# # #         self.wfile.write(response_html.encode())
