@@ -1,12 +1,9 @@
 from http.server import BaseHTTPRequestHandler
 import base64, requests, json
-from urllib.parse import urlparse, parse_qs
 
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
-
-# 1. CHANGED: Now points to your new Projectmutaties connector
 GET_CONNECTOR = "winnie" 
 
 class handler(BaseHTTPRequestHandler):
@@ -19,18 +16,18 @@ class handler(BaseHTTPRequestHandler):
             afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1000", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
             
-            # 2. CHANGED: 'Boekjaar' is now 'Bkjr.' and 'Aantal' is now 'Aant.'
+            # THE MATCH: We use the short titles (Bkjr. and Aant.) from your new screen
             template = next((r for r in all_rows if str(r.get('Bkjr.')) == "2026" and float(r.get('Aant.', 0)) == 8.0), None)
             
             if not template:
-                # If no 2026 data is found, we show a sample of what IS there to troubleshoot
+                # This debug page will now show the REAL labels so we can see why it missed
                 return self.send_debug_page(len(all_rows), all_rows[0] if all_rows else {})
 
-            # 3. CHANGED: 'Project' is now 'Prj.'
+            # THE CLONE: Using 'Prj.' from your new connector
             payload = {"PtRealization": {"Element": {"Fields": {
                 "EmId": "90114",
-                "PrId": template.get('Prj.'),      # Uses your new short column name
-                "ItId": template.get('Itemcode'),  # Ensure you have 'Itemcode' in your AFAS wizard!
+                "PrId": template.get('Prj.'),
+                "ItId": "NF", # Using the 'NF' code seen in your previous data
                 "Qu": 8.0,
                 "Da": "2026-02-25" 
             }}}}
@@ -48,7 +45,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         debug_info = json.dumps(sample, indent=4)
-        html = f"<h1>⚠️ No 2026 Hours Found</h1><p>Found {count} total rows, but none for the year 2026.</p><h3>Sample Data:</h3><pre>{debug_info}</pre>"
+        html = f"<h1>⚠️ Almost There!</h1><p>Scanning {count} rows. Need a 2026 row with 8.0 hours.</p><h3>Current Data View:</h3><pre>{debug_info}</pre>"
         self.wfile.write(html.encode())
 
     def send_success_page(self, success, template, resp_text):
@@ -56,9 +53,8 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         status = "✅ Success!" if success else "❌ Failed"
-        html = f"<h1>{status}</h1><p>Cloned from {template.get('Bkjr.')} Template to Feb 25, 2026.</p><p>{resp_text}</p>"
+        html = f"<h1>{status}</h1><p>Cloned from {template.get('Bkjr.')} to Feb 25, 2026.</p><p>{resp_text}</p>"
         self.wfile.write(html.encode())
-
 
 # from http.server import BaseHTTPRequestHandler
 # import base64, requests, json, datetime
