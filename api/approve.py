@@ -25,7 +25,7 @@ class handler(BaseHTTPRequestHandler):
                             "PrId": "VV",           # Project 'VV' from image_157ca3
                             "ItId": "VZ",           # Itemcode 'VZ' from image_157ca3
                             "Qu": 8.0,              # Quantity: 8 hours
-                            "Da": "2026-01-02"      # A date known to be in an open period
+                            "Da": "2025-12-29"      # A date known to be in an open period
                         }
                     }
                 }
