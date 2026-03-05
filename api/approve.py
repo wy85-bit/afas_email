@@ -22,13 +22,13 @@ class handler(BaseHTTPRequestHandler):
             if not template:
                 return self.send_debug_page("No rows found in Winnie connector.")
 
-            # 3. CLONE: Using a safe date and the template's project info
+           # 3. CLONE: Using the Employee ID from your screen and a 100% safe date
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "1000994",
+                "EmId": "1000994",      # Matched to your Winnie Yap login (image_157ca3)
                 "PrId": template.get('Project'),   
                 "ItId": template.get('Itemcode'), 
                 "Qu": 8.0,
-                "Da": "2025-12-29" # Exact date from your screenshot
+                "Da": "2025-01-16"      # This date is the "Safe Zone" (image_176080)
             }}}}
             
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
