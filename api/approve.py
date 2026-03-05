@@ -12,30 +12,28 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. FETCH DATA - Find a date that AFAS already likes
-            # We take the most recent line from your connector to find a "Safe Date"
+            # 1. FETCH - Find the most recent "Safe Date" in your system
             afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
             
             if not all_rows:
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"<h1>Error</h1><p>No existing data found in Winnie connector to copy from.</p>")
-                return
+                # If the connector is empty, we fall back to the known Monday from your screen
+                safe_date = "2025-12-29"
+                project = "VV"
+                item = "VZ"
+            else:
+                # We use the date AFAS already has on file
+                safe_date = all_rows[0].get('Datum')
+                project = all_rows[0].get('Project')
+                item = all_rows[0].get('Itemcode')
 
-            # Grab the date, project, and item directly from your existing records
-            # This ensures we are in an "Open Period"
-            safe_date = all_rows[0].get('Datum')
-            project = all_rows[0].get('Project')
-            item = all_rows[0].get('Itemcode')
-
-            # 2. CLONE: Using your real ID 1000994 and the Safe Date found above
+            # 2. CLONE - Using your ID 1000994 and the Safe Date
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "1000994",      # Your verified ID from screen image_157ca3
-                "PrId": project,        # Dynamically found project
-                "ItId": item,           # Dynamically found itemcode
+                "EmId": "1000994",      # Your verified ID (image_157ca3)
+                "PrId": project,        
+                "ItId": item,           
                 "Qu": 8.0,
-                "Da": safe_date         # A date AFAS is guaranteed to accept
+                "Da": safe_date         # This is the "Safe Zone" date
             }}}}
             
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
@@ -50,21 +48,13 @@ class handler(BaseHTTPRequestHandler):
                 <html>
                 <body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#f0fdf4;">
                     <h1 style="color:#166534; font-size:60px;">✅ SUCCESS!</h1>
-                    <p style="font-size:24px; color:#14532d;">The Banana has been found!</p>
-                    <p>Cloned Project <strong>{project}</strong> for Date <strong>{safe_date}</strong>.</p>
+                    <p style="font-size:24px;">The Banana has been found!</p>
+                    <p>Cloned {project} for {safe_date}.</p>
                 </body>
                 </html>
                 """
             else:
-                html = f"""
-                <html>
-                <body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#fef2f2;">
-                    <h1 style="color:#991b1b; font-size:60px;">❌ FAILED</h1>
-                    <p style="font-size:20px;">AFAS rejected the entry:</p>
-                    <code style="background:#fff; padding:10px; border:1px solid #fecaca;">{post_resp.text}</code>
-                </body>
-                </html>
-                """
+                html = f"<html><body style='text-align:center; font-family:sans-serif; padding-top:100px;'><h1>❌ Failed</h1><p>AFAS said: {post_resp.text}</p></body></html>"
             
             self.wfile.write(html.encode('utf-8'))
 
