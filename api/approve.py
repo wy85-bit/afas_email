@@ -15,8 +15,7 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. VALIDATION: Is this employee active?
-            # Using a filter to find the specific user
+            # 1. VALIDATION: Check the specific user provided
             emp_resp = requests.get(f"{BASE_URL}/Profit_Employee?filterfieldids=EmployeeId&filtervalues={user_id}&operatortypes=1", headers=headers)
             emp_rows = emp_resp.json().get('rows', [])
             
@@ -24,26 +23,23 @@ class handler(BaseHTTPRequestHandler):
             suggested_id = None
             
             if emp_rows:
-                # Check if they have an end date in the past
-                end_date_str = emp_rows[0].get('EmploymentEnd')
-                if not end_date_str:
+                # If EmploymentEnd is null/empty, they are active
+                if not emp_rows[0].get('EmploymentEnd'):
                     is_active = True
-                else:
-                    end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d")
-                    if end_date > datetime.datetime.now():
-                        is_active = True
             
-            # 2. MAGIC SEARCH: If inactive, find a working ID for testing
+            # 2. BETTER MAGIC: Find a truly active employee using a filter
+            # We filter for 'EmploymentEnd' is empty (Operator 14 is 'Is Empty' in many AFAS versions, 
+            # but we'll fetch a small list and check manually to be safe)
             if not is_active:
-                # Grab a larger batch to find a truly active one
-                search_resp = requests.get(f"{BASE_URL}/Profit_Employee?take=20", headers=headers)
+                search_resp = requests.get(f"{BASE_URL}/Profit_Employee?take=50", headers=headers)
                 candidates = search_resp.json().get('rows', [])
                 for person in candidates:
-                    if not person.get('EmploymentEnd'): # No end date means they are active!
+                    # Look for the first person that is NOT the current user and has no end date
+                    if str(person.get('EmployeeId')) != str(user_id) and not person.get('EmploymentEnd'):
                         suggested_id = person.get('EmployeeId')
                         break
 
-            # 3. PROCESSING: Only run if the user is active
+            # 3. PROCESSING (Only if active)
             success_count = 0
             error_details = []
             today = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -51,69 +47,51 @@ class handler(BaseHTTPRequestHandler):
             if is_active:
                 afas_resp = requests.get(f"{BASE_URL}/Profit_Realization", headers=headers)
                 all_rows = afas_resp.json().get('rows', [])
-                # Filter rows for our user
                 my_rows = [r for r in all_rows if str(r.get('EmployeeId')) == str(user_id)]
                 
                 for row in my_rows:
-                    payload = {
-                        "PtRealization": {
-                            "Element": {
-                                "Fields": {
-                                    "EmId": row.get('EmployeeId'),
-                                    "PrId": row.get('ProjectID'),
-                                    "ItId": row.get('ItemCodeId'),
-                                    "UnId": row.get('UnitId'),
-                                    "Qu": row.get('QuantityUnit'),
-                                    "Da": today 
-                                }
-                            }
-                        }
-                    }
+                    payload = {"PtRealization": {"Element": {"Fields": {
+                        "EmId": row.get('EmployeeId'), "PrId": row.get('ProjectID'),
+                        "ItId": row.get('ItemCodeId'), "UnId": row.get('UnitId'),
+                        "Qu": row.get('QuantityUnit'), "Da": today 
+                    }}}}
                     post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
-                    if post_resp.status_code in [200, 201]:
-                        success_count += 1
-                    else:
-                        # Grab the AFAS error message (like the "Period" error)
+                    if post_resp.status_code not in [200, 201]:
                         error_details.append(post_resp.json().get('externalMessage', 'Unknown Error'))
+                    else:
+                        success_count += 1
 
-            # 4. RESPONSE: The HTML page
+            # 4. RESPONSE
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
             status_color = "#0070f3" if is_active else "#ff4d4d"
-            status_title = "✅ Active Employee Found" if is_active else "⚠️ Employee Out of Service"
-            
             html = f"""
             <html><body style="font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f9f9f9;">
-                <div style="background: white; display: inline-block; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                    <h1 style="color: {status_color}; margin-top: 0;">{status_title}</h1>
-                    <p style="font-size: 1.1em; color: #333;">Checking ID: <b>{user_id}</b></p>
+                <div style="background: white; display: inline-block; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 400px;">
+                    <h1 style="color: {status_color};">{"✅ Active" if is_active else "⚠️ Inactive"}</h1>
+                    <p>User ID: <b>{user_id}</b></p>
             """
-            
             if not is_active:
                 html += f"""
-                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-                    <p>This person has left the company.</p>
-                    {f'<p style="background: #e7f3ff; padding: 10px; border-radius: 5px;">Try this active ID instead: <a href="?user_id={suggested_id}" style="color: #0070f3; font-weight: bold;">{suggested_id}</a></p>' if suggested_id else '<p>No other active employees found in test.</p>'}
+                    <p style="color: #666;">This user is out of service.</p>
+                    <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                        <b>Found an active colleague for you:</b><br><br>
+                        <a href="?user_id={suggested_id}" style="color: #0070f3; font-weight: bold; font-size: 1.2em;">Use ID {suggested_id}</a>
+                    </div>
                 """
             else:
-                html += f"""
-                    <p style="font-size: 1.2em;">Processed <b>{success_count}</b> entries for today.</p>
-                    {f'<p style="color: #ff4d4d; background: #fff1f1; padding: 10px; border: 1px solid #ff4d4d; border-radius: 5px;"><b>AFAS Error:</b> {error_details[0]}</p>' if error_details else ''}
-                """
+                html += f"<p>Processed: <b>{success_count}</b></p>"
+                if error_details: html += f'<p style="color:red">{error_details[0]}</p>'
 
-            html += """
-                </div>
-                <p style="margin-top: 20px; color: #999; font-size: 0.8em;">Environment: 90114 (TEST)</p>
-            </body></html>
-            """
+            html += "</div></body></html>"
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
             self.send_response(500)
             self.end_headers()
-            self.wfile.write(f"System Error: {str(e)}".encode())
+            self.wfile.write(f"Error: {str(e)}".encode())
 
 
 # from http.server import BaseHTTPRequestHandler
