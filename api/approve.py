@@ -9,29 +9,22 @@ BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         query = parse_qs(urlparse(self.path).query)
-        user_id = query.get('user_id', [None])[0]
+        user_id = query.get('user_id', ['90114'])[0] # Default to 90114 if none provided
         
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. VALIDATION: Check if the user in the URL is active
-            is_active = False
+            # 1. VERIFY: Does this user exist at all?
             emp_resp = requests.get(f"{BASE_URL}/Profit_Employee?filterfieldids=EmployeeId&filtervalues={user_id}&operatortypes=1", headers=headers)
-            emp_rows = emp_resp.json().get('rows', [])
+            user_exists = len(emp_resp.json().get('rows', [])) > 0
             
-            if emp_rows and not emp_rows[0].get('EmploymentEnd'):
-                is_active = True
-
-            # 2. FAIL-SAFE SUGGESTION: Hardcoded backup + search
-            suggested_id = "90114" # We KNOW this one works based on your screenshot!
-            
-            # 3. PROCESSING (Only if active)
             success_count = 0
             error_details = []
             today = datetime.datetime.now().strftime("%Y-%m-%d")
 
-            if is_active:
+            # 2. PROCESS: If the user exists, let's try to find and approve hours
+            if user_exists:
                 afas_resp = requests.get(f"{BASE_URL}/Profit_Realization", headers=headers)
                 all_rows = afas_resp.json().get('rows', [])
                 my_rows = [r for r in all_rows if str(r.get('EmployeeId')) == str(user_id)]
@@ -48,39 +41,45 @@ class handler(BaseHTTPRequestHandler):
                     else:
                         success_count += 1
 
-            # 4. RESPONSE
+            # 3. DYNAMIC HTML RESPONSE
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            status_color = "#0070f3" if is_active else "#ff4d4d"
+            # Decide color based on results
+            status_color = "#0070f3" if (user_exists and not error_details) else "#ff4d4d"
+            
             html = f"""
             <html><body style="font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f9f9f9;">
-                <div style="background: white; display: inline-block; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 400px;">
-                    <h1 style="color: {status_color};">{"✅ Active" if is_active else "⚠️ Inactive"}</h1>
-                    <p>Testing ID: <b>{user_id}</b></p>
+                <div style="background: white; display: inline-block; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 450px;">
+                    <h1 style="color: {status_color};">{"✅ System Online" if user_exists else "⚠️ User Not Found"}</h1>
+                    <p style="font-size: 1.1em;">Currently accessing ID: <b>{user_id}</b></p>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
             """
-            if not is_active:
-                html += f"""
-                    <p style="color: #666;">This user is out of service.</p>
-                    <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px solid #b3d7ff;">
-                        <b style="color: #0056b3;">Switch to a known active user:</b><br><br>
-                        <a href="?user_id={suggested_id}" style="background: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Use ID {suggested_id}</a>
-                    </div>
-                """
+            
+            if not user_exists:
+                html += f'<p>Could not find an employee with ID {user_id} in the 90114 test environment.</p>'
             else:
-                html += f"""
-                    <p style="font-size: 1.2em;">Processed: <b>{success_count}</b> entries.</p>
-                    {f'<p style="color:red; background: #fff1f1; padding: 10px;"><b>AFAS Error:</b> {error_details[0]}</p>' if error_details else '<p style="color: green;">Successfully updated realization!</p>'}
-                """
+                html += f"<p style='font-size: 1.2em;'>Found and processed <b>{success_count}</b> hour entries for {today}.</p>"
+                if error_details:
+                    html += f'<div style="color: #ff4d4d; background: #fff1f1; padding: 15px; border-radius: 8px; border: 1px solid #ff4d4d; margin-top: 10px;">'
+                    html += f'<b>AFAS says:</b> {error_details[0]}</div>'
 
-            html += "</div></body></html>"
+            html += f"""
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <p style="color: #666; font-size: 0.9em;">Switch testing user:</p>
+                        <a href="?user_id=90114" style="color: #0070f3; text-decoration: none; font-weight: bold; margin: 0 10px;">ID 90114</a> | 
+                        <a href="?user_id=1000077" style="color: #0070f3; text-decoration: none; font-weight: bold; margin: 0 10px;">ID 1000077</a>
+                    </div>
+                </div>
+            </body></html>
+            """
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
             self.send_response(500)
             self.end_headers()
-            self.wfile.write(f"Error: {str(e)}".encode())
+            self.wfile.write(f"System Error: {str(e)}".encode())
 
 
 # from http.server import BaseHTTPRequestHandler
