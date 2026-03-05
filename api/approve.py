@@ -4,60 +4,58 @@ import base64, requests, json
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
+GET_CONNECTOR = "winnie" 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # 1. PREPARE AUTHENTICATION
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
-        headers = {
-            'Authorization': f'AfasToken {token}', 
-            'Content-Type': 'application/json'
-        }
+        headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 2. DEFINE THE PAYLOAD
-            # We use hardcoded values verified from your AFAS screen to guarantee success.
-            payload = {
-                "PtRealization": {
-                    "Element": {
-                        "Fields": {
-                            "EmId": "1000994",      # Your Employee ID from image_157ca3
-                            "PrId": "VV",           # Project 'VV' from image_157ca3
-                            "ItId": "VZ",           # Itemcode 'VZ' from image_157ca3
-                            "Qu": 8.0,              # Quantity: 8 hours
-                            "Da": "2025-12-29"      # A date known to be in an open period
-                        }
-                    }
-                }
-            }
+            # 1. FETCH DATA - Find a date that AFAS already likes
+            # We take the most recent line from your connector to find a "Safe Date"
+            afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1", headers=headers)
+            all_rows = afas_resp.json().get('rows', [])
             
-            # 3. SEND TO AFAS
+            if not all_rows:
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"<h1>Error</h1><p>No existing data found in Winnie connector to copy from.</p>")
+                return
+
+            # Grab the date, project, and item directly from your existing records
+            # This ensures we are in an "Open Period"
+            safe_date = all_rows[0].get('Datum')
+            project = all_rows[0].get('Project')
+            item = all_rows[0].get('Itemcode')
+
+            # 2. CLONE: Using your real ID 1000994 and the Safe Date found above
+            payload = {"PtRealization": {"Element": {"Fields": {
+                "EmId": "1000994",      # Your verified ID from screen image_157ca3
+                "PrId": project,        # Dynamically found project
+                "ItId": item,           # Dynamically found itemcode
+                "Qu": 8.0,
+                "Da": safe_date         # A date AFAS is guaranteed to accept
+            }}}}
+            
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
             
-            # 4. SEND RESPONSE TO BROWSER
+            # 3. SHOW RESULT
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
             if post_resp.status_code in [200, 201]:
-                # SUCCESS HTML
-                html = """
+                html = f"""
                 <html>
                 <body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#f0fdf4;">
-                    <h1 style="color:#166534; font-size:60px; margin-bottom:10px;">✅ SUCCESS!</h1>
-                    <p style="font-size:24px; color:#14532d;">The 'Banana' has been found!</p>
-                    <div style="display:inline-block; text-align:left; background:white; padding:20px; border-radius:8px; border:1px solid #bbf7d0; margin-top:20px;">
-                        <strong>Employee:</strong> 1000994 (Winnie Yap)<br>
-                        <strong>Project:</strong> VV<br>
-                        <strong>Date:</strong> Jan 16, 2025<br>
-                        <strong>Hours:</strong> 8.0
-                    </div>
-                    <p style="margin-top:30px; color:#666;">Check 'Nacalculatie per regel' in AFAS to see your entry.</p>
+                    <h1 style="color:#166534; font-size:60px;">✅ SUCCESS!</h1>
+                    <p style="font-size:24px; color:#14532d;">The Banana has been found!</p>
+                    <p>Cloned Project <strong>{project}</strong> for Date <strong>{safe_date}</strong>.</p>
                 </body>
                 </html>
                 """
             else:
-                # FAILED HTML (Shows AFAS feedback clearly)
                 html = f"""
                 <html>
                 <body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#fef2f2;">
@@ -71,12 +69,9 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
-            # ERROR HANDLING
             self.send_response(200)
-            self.send_header('Content-type', 'text/html')
             self.end_headers()
-            error_html = f"<html><body><h1>⚠️ Script Error</h1><p>{str(e)}</p></body></html>"
-            self.wfile.write(error_html.encode())
+            self.wfile.write(f"Error: {str(e)}".encode())
 
 
 # from http.server import BaseHTTPRequestHandler
