@@ -5,7 +5,9 @@ from urllib.parse import urlparse, parse_qs
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
-GET_CONNECTOR = "Cloning_Data_Winnie" 
+
+# 1. CHANGED: Now points to your new Projectmutaties connector
+GET_CONNECTOR = "winnie" 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -13,25 +15,22 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. FETCH DATA
-            # afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}", headers=headers)
-            # Added skip=0 and take=1000 to grab a much larger chunk of data
+            # FETCH DATA
             afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1000", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
             
-            # 2. THE 2026 FILTER
-            # We look for a row where Boekjaar is 2026 AND hours are 8.0
-            template = next((r for r in all_rows if str(r.get('Boekjaar')) == "2026" and float(r.get('Aantal', 0)) == 8.0), None)
+            # 2. CHANGED: 'Boekjaar' is now 'Bkjr.' and 'Aantal' is now 'Aant.'
+            template = next((r for r in all_rows if str(r.get('Bkjr.')) == "2026" and float(r.get('Aant.', 0)) == 8.0), None)
             
             if not template:
                 # If no 2026 data is found, we show a sample of what IS there to troubleshoot
                 return self.send_debug_page(len(all_rows), all_rows[0] if all_rows else {})
 
-            # 3. THE CLONE
+            # 3. CHANGED: 'Project' is now 'Prj.'
             payload = {"PtRealization": {"Element": {"Fields": {
                 "EmId": "90114",
-                "PrId": template.get('Project'),   
-                "ItId": template.get('Itemcode'),  
+                "PrId": template.get('Prj.'),      # Uses your new short column name
+                "ItId": template.get('Itemcode'),  # Ensure you have 'Itemcode' in your AFAS wizard!
                 "Qu": 8.0,
                 "Da": "2026-02-25" 
             }}}}
@@ -57,9 +56,8 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         status = "✅ Success!" if success else "❌ Failed"
-        html = f"<h1>{status}</h1><p>Cloned from {template.get('Boekjaar')} Template to Feb 25, 2026.</p><p>{resp_text}</p>"
+        html = f"<h1>{status}</h1><p>Cloned from {template.get('Bkjr.')} Template to Feb 25, 2026.</p><p>{resp_text}</p>"
         self.wfile.write(html.encode())
-
 
 
 # from http.server import BaseHTTPRequestHandler
