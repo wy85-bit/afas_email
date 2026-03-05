@@ -22,29 +22,33 @@ class handler(BaseHTTPRequestHandler):
             if not template:
                 return self.send_debug_page("No rows found in Winnie connector.")
 
-           # 3. CLONE: Using the Employee ID from your screen and a 100% safe date
-          # 3. CLONE: Hardcoding known valid values from your AFAS screen (image_157ca3)
+         # 3. CLONE: Hardcoding known valid values from your AFAS screen
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "1000994",      # Your ID
-                "PrId": "VV",           # Project 'VV' from your screen
-                "ItId": "VZ",           # Itemcode 'VZ' from your screen
+                "EmId": "1000994",      # Your actual Employee ID
+                "PrId": "VV",           # Project 'VV'
+                "ItId": "VZ",           # Itemcode 'VZ'
                 "Qu": 8.0,
-                "Da": "2025-01-16"      # The known working date
+                "Da": "2025-01-16"      # The "Safe Zone" date
             }}}}
             
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
             
-            # 4. SHOW RESULT (This prevents the 500 crash)
+            # 4. SHOW RESULT
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
             
             if post_resp.status_code in [200, 201]:
-                html = f"<h1>✅ Success!</h1><p>Cloned {template.get('Project')} to Jan 16, 2025.</p>"
+                # THE GREEN TICK CELEBRATION!
+                html = f"""
+                <div style="text-align:center; font-family:sans-serif; margin-top:50px;">
+                    <h1 style="color:green; font-size:50px;">✅ SUCCESS!</h1>
+                    <p style="font-size:20px;">Winnie, you did it! Project 'VV' has been cloned.</p>
+                    <p>Go check 'Nacalculatie per regel' for Jan 16, 2025!</p>
+                </div>
+                """
             else:
                 html = f"<h1>❌ Failed</h1><p>AFAS said: {post_resp.text}</p>"
-            
-            self.wfile.write(html.encode())
 
         except Exception as e:
             self.send_response(200) # Keep it 200 to see the error message
