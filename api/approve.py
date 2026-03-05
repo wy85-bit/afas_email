@@ -33,7 +33,7 @@ class handler(BaseHTTPRequestHandler):
                 "PrId": project,        
                 "ItId": item,           
                 "Qu": 8.0,
-                "Da": safe_date         # This is the "Safe Zone" date
+                "Da": "2026-03-05"        # This is the "Safe Zone" date
             }}}}
             
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
