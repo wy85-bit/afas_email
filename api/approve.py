@@ -55,6 +55,62 @@ class handler(BaseHTTPRequestHandler):
         status = "✅ Success!" if success else "❌ Failed"
         # Using 'Datum' which we know is working
         html = f"<h1>{status}</h1><p>Cloned Template to Feb 25, 2026.</p><p>{resp_text}</p>"
+        self.wfile.write(html.encode())from http.server import BaseHTTPRequestHandler
+import base64, requests, json
+
+# --- CONFIGURATION ---
+AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
+BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
+GET_CONNECTOR = "winnie" 
+
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
+        headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
+
+        try:
+            # 1. FETCH DATA
+            afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1000", headers=headers)
+            all_rows = afas_resp.json().get('rows', [])
+            
+            # 2. MATCHING: Find a valid template from your 2025 data (image_21690b)
+            template = next((r for r in all_rows if r.get('Aantal') is not None), None)
+            
+            if not template:
+                return self.send_debug_page(len(all_rows), all_rows[0] if all_rows else {})
+
+            # 3. CLONE: Booking into Jan 2025 because it's an "Open" period (image_21690b)
+            payload = {"PtRealization": {"Element": {"Fields": {
+                "EmId": "90114",
+                "PrId": template.get('Project'),   
+                "ItId": template.get('Itemcode'), 
+                "Qu": 8.0,
+                "Da": "2025-01-20" 
+            }}}}
+            
+            post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
+            self.send_success_page(post_resp.status_code in [200, 201], template, post_resp.text)
+
+        except Exception as e:
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(f"System Error: {str(e)}".encode())
+
+    def send_debug_page(self, count, sample):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        debug_info = json.dumps(sample, indent=4)
+        html = f"<h1>⚠️ Connection Live!</h1><p>Scanning {count} rows.</p><h3>Data Received:</h3><pre>{debug_info}</pre>"
+        self.wfile.write(html.encode())
+
+    def send_success_page(self, success, template, resp_text):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        status = "✅ Success!" if success else "❌ Failed"
+        # Updated this text so it doesn't say 2026 when we are testing 2025!
+        html = f"<h1>{status}</h1><p>Cloned Template to Jan 20, 2025.</p><p>{resp_text}</p>"
         self.wfile.write(html.encode())
 
 
