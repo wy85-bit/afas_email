@@ -29,7 +29,7 @@ class handler(BaseHTTPRequestHandler):
                 "PrId": template.get('Project'),   
                 "ItId": template.get('Itemcode'), 
                 "Qu": 8.0,
-                "Da": "2025-02-25"
+                "Da": "2025-01-20"
             }}}}
             
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
