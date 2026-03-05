@@ -23,12 +23,13 @@ class handler(BaseHTTPRequestHandler):
                 return self.send_debug_page("No rows found in Winnie connector.")
 
            # 3. CLONE: Using the Employee ID from your screen and a 100% safe date
+          # 3. CLONE: Hardcoding known valid values from your AFAS screen (image_157ca3)
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "1000994",      # Matched to your Winnie Yap login (image_157ca3)
-                "PrId": template.get('Project'),   
-                "ItId": template.get('Itemcode'), 
+                "EmId": "1000994",      # Your ID
+                "PrId": "VV",           # Project 'VV' from your screen
+                "ItId": "VZ",           # Itemcode 'VZ' from your screen
                 "Qu": 8.0,
-                "Da": "2025-01-16"      # This date is the "Safe Zone" (image_176080)
+                "Da": "2025-01-16"      # The known working date
             }}}}
             
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
