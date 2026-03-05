@@ -1,78 +1,71 @@
 from http.server import BaseHTTPRequestHandler
-import base64, requests, json, datetime
+import base64, requests, json
 from urllib.parse import urlparse, parse_qs
 
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
+# Using your new custom connector name from image_24f102.png
+GET_CONNECTOR = "Cloning_Data_Winnie" 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         query = parse_qs(urlparse(self.path).query)
-        user_id = query.get('user_id', ['1000077'])[0] 
+        user_id = query.get('user_id', ['90114'])[0] 
         
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. FETCH RAW DATA (No filters, just get everything)
-            afas_resp = requests.get(f"{BASE_URL}/Profit_Realization", headers=headers)
+            # 1. FETCH THE GOLD STANDARD (Padlocked February entries)
+            afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
-            my_rows = [r for r in all_rows if str(r.get('EmployeeId')) == str(user_id)]
             
-            success_count = 0
-            error_msg = ""
-            # We will try to backdate to February to dodge the March 'Period' error
-            safe_date = "2026-02-25" 
+            # Find the first padlocked 8-hour entry for our user
+            template = next((r for r in all_rows if str(r.get('Medewerker')) == str(user_id) and r.get('Gefactureerd') == True), None)
+            
+            if not template:
+                return self.send_error_page("No padlocked hours found for cloning.")
 
-            # 2. ATTEMPT PUSH
-            for row in my_rows:
-                payload = {"PtRealization": {"Element": {"Fields": {
-                    "EmId": row.get('EmployeeId'), "PrId": row.get('ProjectID'),
-                    "ItId": row.get('ItemCodeId'), "UnId": row.get('UnitId'),
-                    "Qu": row.get('QuantityUnit'), "Da": safe_date 
-                }}}}
-                post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
-                if post_resp.status_code in [200, 201]:
-                    success_count += 1
-                else:
-                    error_msg = post_resp.json().get('externalMessage', 'Unknown Error')
+            # 2. CREATE THE CLONE (Targeting Feb 25 to bypass period errors)
+            payload = {"PtRealization": {"Element": {"Fields": {
+                "EmId": user_id,
+                "PrId": template.get('Project'),
+                "ItId": template.get('Itemcode'),
+                "Qu": 8.0,
+                "Da": "2026-02-25" 
+            }}}}
+            
+            post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
+            success = post_resp.status_code in [200, 201]
 
-            # 3. VERBOSE RESPONSE (So we can see exactly what's happening)
+            # 3. SHOW THE RESULT
             self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.send_header('Content-type', 'text/html')
             self.end_headers()
             
-            status_color = "#28a745" if success_count > 0 else "#dc3545"
             html = f"""
-            <html><body style="font-family: sans-serif; text-align: center; padding: 50px; background: #f4f7f6;">
-                <div style="background: white; display: inline-block; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 10px solid {status_color};">
-                    <h1 style="color: {status_color};">Status: {success_count} Approved</h1>
-                    <p>Testing with User: <b>{user_id}</b></p>
-                    <p>Found <b>{len(my_rows)}</b> open entries in AFAS.</p>
-            """
-            
-            if error_msg:
-                html += f'<p style="color: red; background: #ffeeee; padding: 10px; border-radius: 5px;"><b>Latest AFAS Error:</b> {error_msg}</p>'
-            
-            if len(my_rows) > 0:
-                html += "<h3>Entries we tried to approve:</h3><table border='1' style='margin:auto; border-collapse: collapse; font-size: 0.8em;'>"
-                html += "<tr><th>Project</th><th>Units</th><th>Orig. Date</th></tr>"
-                for r in my_rows[:5]: # Show first 5
-                    html += f"<tr><td>{r.get('ProjectID')}</td><td>{r.get('QuantityUnit')}</td><td>{r.get('Date')}</td></tr>"
-                html += "</table>"
-
-            html += f"""
-                    <p style="margin-top: 20px;"><a href="?user_id=1000077" style="color: #007bff;">Retry 1000077</a> | <a href="?user_id=90114" style="color: #007bff;">Retry 90114</a></p>
+            <html><body style="font-family: sans-serif; text-align: center; padding: 50px;">
+                <div style="border: 2px solid {'green' if success else 'red'}; padding: 20px; border-radius: 10px; display: inline-block;">
+                    <h1>{'✅ Success!' if success else '❌ Clone Failed'}</h1>
+                    <p>Found padlocked template from: <b>{template.get('Datum')}</b></p>
+                    <p>Attempted to clone 8 hours to: <b>2026-02-25</b></p>
+                    {'<p style="color: red;">' + post_resp.text + '</p>' if not success else ''}
                 </div>
             </body></html>
             """
-            self.wfile.write(html.encode('utf-8'))
+            self.wfile.write(html.encode())
 
         except Exception as e:
             self.send_response(500)
             self.end_headers()
             self.wfile.write(str(e).encode())
+
+    def send_error_page(self, msg):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(f"<h1>Error</h1><p>{msg}</p>".encode())
 
 
 # from http.server import BaseHTTPRequestHandler
