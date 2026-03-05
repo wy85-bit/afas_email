@@ -18,7 +18,8 @@ class handler(BaseHTTPRequestHandler):
         try:
             success_count = 0
             error_details = []
-            today = datetime.datetime.now().strftime("%Y-%m-%d")
+            # today = datetime.datetime.now().strftime("%Y-%m-%d")
+            today = "2026-02-20"
 
             # 1. DIRECT DATA FETCH: Skip the employee check, go straight to the hours
             afas_resp = requests.get(f"{BASE_URL}/Profit_Realization", headers=headers)
