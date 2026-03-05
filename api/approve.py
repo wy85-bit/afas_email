@@ -9,67 +9,65 @@ BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         query = parse_qs(urlparse(self.path).query)
-        user_id = query.get('user_id', ['90114'])[0] # Default to 90114 if none provided
+        # Default to 90114 if the URL doesn't have an ID
+        user_id = query.get('user_id', ['90114'])[0] 
         
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. VERIFY: Does this user exist at all?
-            emp_resp = requests.get(f"{BASE_URL}/Profit_Employee?filterfieldids=EmployeeId&filtervalues={user_id}&operatortypes=1", headers=headers)
-            user_exists = len(emp_resp.json().get('rows', [])) > 0
-            
             success_count = 0
             error_details = []
             today = datetime.datetime.now().strftime("%Y-%m-%d")
 
-            # 2. PROCESS: If the user exists, let's try to find and approve hours
-            if user_exists:
-                afas_resp = requests.get(f"{BASE_URL}/Profit_Realization", headers=headers)
-                all_rows = afas_resp.json().get('rows', [])
-                my_rows = [r for r in all_rows if str(r.get('EmployeeId')) == str(user_id)]
-                
-                for row in my_rows:
-                    payload = {"PtRealization": {"Element": {"Fields": {
-                        "EmId": row.get('EmployeeId'), "PrId": row.get('ProjectID'),
-                        "ItId": row.get('ItemCodeId'), "UnId": row.get('UnitId'),
-                        "Qu": row.get('QuantityUnit'), "Da": today 
-                    }}}}
-                    post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
-                    if post_resp.status_code not in [200, 201]:
-                        error_details.append(post_resp.json().get('externalMessage', 'Unknown Error'))
-                    else:
-                        success_count += 1
+            # 1. DIRECT DATA FETCH: Skip the employee check, go straight to the hours
+            afas_resp = requests.get(f"{BASE_URL}/Profit_Realization", headers=headers)
+            all_rows = afas_resp.json().get('rows', [])
+            
+            # Filter rows for the provided user_id
+            my_rows = [r for r in all_rows if str(r.get('EmployeeId')) == str(user_id)]
+            
+            # 2. PROCESS: Try to push the updates
+            for row in my_rows:
+                payload = {"PtRealization": {"Element": {"Fields": {
+                    "EmId": row.get('EmployeeId'), 
+                    "PrId": row.get('ProjectID'),
+                    "ItId": row.get('ItemCodeId'), 
+                    "UnId": row.get('UnitId'),
+                    "Qu": row.get('QuantityUnit'), 
+                    "Da": today 
+                }}}}
+                post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
+                if post_resp.status_code not in [200, 201]:
+                    error_details.append(post_resp.json().get('externalMessage', 'Unknown Error'))
+                else:
+                    success_count += 1
 
-            # 3. DYNAMIC HTML RESPONSE
+            # 3. RESPONSE
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            # Decide color based on results
-            status_color = "#0070f3" if (user_exists and not error_details) else "#ff4d4d"
-            
             html = f"""
             <html><body style="font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f9f9f9;">
                 <div style="background: white; display: inline-block; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 450px;">
-                    <h1 style="color: {status_color};">{"✅ System Online" if user_exists else "⚠️ User Not Found"}</h1>
-                    <p style="font-size: 1.1em;">Currently accessing ID: <b>{user_id}</b></p>
+                    <h1 style="color: #0070f3;">✅ Processing Complete</h1>
+                    <p style="font-size: 1.1em;">Target ID: <b>{user_id}</b></p>
                     <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                    <p style="font-size: 1.2em;">Found <b>{len(my_rows)}</b> rows for this user.</p>
+                    <p>Successfully processed: <b>{success_count}</b></p>
             """
             
-            if not user_exists:
-                html += f'<p>Could not find an employee with ID {user_id} in the 90114 test environment.</p>'
-            else:
-                html += f"<p style='font-size: 1.2em;'>Found and processed <b>{success_count}</b> hour entries for {today}.</p>"
-                if error_details:
-                    html += f'<div style="color: #ff4d4d; background: #fff1f1; padding: 15px; border-radius: 8px; border: 1px solid #ff4d4d; margin-top: 10px;">'
-                    html += f'<b>AFAS says:</b> {error_details[0]}</div>'
+            if error_details:
+                html += f'''
+                    <div style="color: #ff4d4d; background: #fff1f1; padding: 15px; border-radius: 8px; border: 1px solid #ff4d4d; margin-top: 10px; text-align: left;">
+                        <b>AFAS Error:</b> {error_details[0]}
+                    </div>
+                '''
 
             html += f"""
                     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-                        <p style="color: #666; font-size: 0.9em;">Switch testing user:</p>
-                        <a href="?user_id=90114" style="color: #0070f3; text-decoration: none; font-weight: bold; margin: 0 10px;">ID 90114</a> | 
-                        <a href="?user_id=1000077" style="color: #0070f3; text-decoration: none; font-weight: bold; margin: 0 10px;">ID 1000077</a>
+                        <a href="?user_id=90114" style="color: #0070f3; text-decoration: none; font-weight: bold;">Reload for 90114</a>
                     </div>
                 </div>
             </body></html>
