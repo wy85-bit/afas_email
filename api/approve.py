@@ -9,43 +9,27 @@ GET_CONNECTOR = "Cloning_Data_Winnie"
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        query = parse_qs(urlparse(self.path).query)
-        user_id = query.get('user_id', ['90114'])[0] 
-        
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. FETCH THE 100 ROWS
+            # 1. FETCH DATA
             afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
             
-            # 2. INSPECTION LOGIC
-            # Let's see what the first row actually looks like to check the labels
-            sample_row = all_rows[0] if all_rows else {}
+            # 2. THE 2026 FILTER
+            # We look for a row where Boekjaar is 2026 AND hours are 8.0
+            template = next((r for r in all_rows if str(r.get('Boekjaar')) == "2026" and float(r.get('Aantal', 0)) == 8.0), None)
             
-            # Use a very flexible search: check if user_id is anywhere in the row
-            template = None
-            for r in all_rows:
-                # Check if 90114 is in the Medewerker field (Mdw.)
-                if str(r.get('Mdw.', '')).strip() == str(user_id).strip():
-                    # Check if the hours (Aant.) are roughly 8
-                    try:
-                        hours = float(r.get('Aant.', 0))
-                        if hours == 8.0:
-                            template = r
-                            break
-                    except: continue
-
             if not template:
-                # If it still fails, show the user EXACTLY what the first row looks like
-                return self.send_debug_page(user_id, len(all_rows), sample_row)
+                # If no 2026 data is found, we show a sample of what IS there to troubleshoot
+                return self.send_debug_page(len(all_rows), all_rows[0] if all_rows else {})
 
-            # 3. CLONE (If found)
+            # 3. THE CLONE
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": user_id,
-                "PrId": template.get('Prj.'),
-                "ItId": template.get('Code'),
+                "EmId": "90114",
+                "PrId": template.get('Project'),   
+                "ItId": template.get('Itemcode'),  
                 "Qu": 8.0,
                 "Da": "2026-02-25" 
             }}}}
@@ -54,36 +38,25 @@ class handler(BaseHTTPRequestHandler):
             self.send_success_page(post_resp.status_code in [200, 201], template, post_resp.text)
 
         except Exception as e:
-            self.send_error(str(e))
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(f"System Error: {str(e)}".encode())
 
-    def send_debug_page(self, user_id, count, sample):
+    def send_debug_page(self, count, sample):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         debug_info = json.dumps(sample, indent=4)
-        html = f"""
-        <h1>🔍 Debugging Template Search</h1>
-        <p>Searching for User: <b>{user_id}</b> with 8 hours.</p>
-        <p>Connector returned <b>{count}</b> rows.</p>
-        <hr>
-        <h3>Example Row Data (What AFAS is actually sending):</h3>
-        <pre style="background:#eee; padding:10px;">{debug_info}</pre>
-        <p><i>If you don't see "90114" in the data above, the connector isn't pulling your data yet.</i></p>
-        """
+        html = f"<h1>⚠️ No 2026 Hours Found</h1><p>Found {count} total rows, but none for the year 2026.</p><h3>Sample Data:</h3><pre>{debug_info}</pre>"
         self.wfile.write(html.encode())
 
     def send_success_page(self, success, template, resp_text):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
-        msg = "✅ Clone Successful" if success else "❌ Clone Failed"
-        self.wfile.write(f"<h1>{msg}</h1><p>From: {template.get('Datum')}</p><p>{resp_text}</p>".encode())
-
-    def send_error(self, err):
-        self.send_response(500)
-        self.end_headers()
-        self.wfile.write(f"System Error: {err}".encode())
-
+        status = "✅ Success!" if success else "❌ Failed"
+        html = f"<h1>{status}</h1><p>Cloned from {template.get('Boekjaar')} Template to Feb 25, 2026.</p><p>{resp_text}</p>"
+        self.wfile.write(html.encode())
 
 
 
