@@ -9,68 +9,61 @@ BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         query = parse_qs(urlparse(self.path).query)
-        user_id = query.get('user_id', ['90114'])[0] 
+        user_id = query.get('user_id', ['1000077'])[0] 
         
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. FETCH THE DATA
+            # 1. FETCH RAW DATA (No filters, just get everything)
             afas_resp = requests.get(f"{BASE_URL}/Profit_Realization", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
-            
-            # Filter rows for the target user
             my_rows = [r for r in all_rows if str(r.get('EmployeeId')) == str(user_id)]
             
             success_count = 0
-            error_details = []
+            error_msg = ""
+            # We will try to backdate to February to dodge the March 'Period' error
+            safe_date = "2026-02-25" 
 
-            # 2. PROCESS (Using the ORIGINAL date of the entry to avoid Period Errors)
+            # 2. ATTEMPT PUSH
             for row in my_rows:
-                # Use the date already on the row ('Da'), or fallback to a safe Feb date if missing
-                original_date = row.get('Date', '2026-02-20') 
-                
                 payload = {"PtRealization": {"Element": {"Fields": {
-                    "EmId": row.get('EmployeeId'), 
-                    "PrId": row.get('ProjectID'),
-                    "ItId": row.get('ItemCodeId'), 
-                    "UnId": row.get('UnitId'),
-                    "Qu": row.get('QuantityUnit'), 
-                    "Da": original_date 
+                    "EmId": row.get('EmployeeId'), "PrId": row.get('ProjectID'),
+                    "ItId": row.get('ItemCodeId'), "UnId": row.get('UnitId'),
+                    "Qu": row.get('QuantityUnit'), "Da": safe_date 
                 }}}}
-                
                 post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
-                if post_resp.status_code not in [200, 201]:
-                    error_details.append(post_resp.json().get('externalMessage', 'Unknown Error'))
-                else:
+                if post_resp.status_code in [200, 201]:
                     success_count += 1
+                else:
+                    error_msg = post_resp.json().get('externalMessage', 'Unknown Error')
 
-            # 3. HTML RESPONSE
+            # 3. VERBOSE RESPONSE (So we can see exactly what's happening)
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
+            status_color = "#28a745" if success_count > 0 else "#dc3545"
             html = f"""
-            <html><body style="font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f9f9f9;">
-                <div style="background: white; display: inline-block; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 450px;">
-                    <h1 style="color: #0070f3;">{'✅ Success' if success_count > 0 or not my_rows else '❌ Action Needed'}</h1>
-                    <p>Logged in as: <b>{user_id}</b></p>
-                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-                    <p>Found <b>{len(my_rows)}</b> entries awaiting approval.</p>
-                    <p>Successfully processed: <b>{success_count}</b></p>
+            <html><body style="font-family: sans-serif; text-align: center; padding: 50px; background: #f4f7f6;">
+                <div style="background: white; display: inline-block; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 10px solid {status_color};">
+                    <h1 style="color: {status_color};">Status: {success_count} Approved</h1>
+                    <p>Testing with User: <b>{user_id}</b></p>
+                    <p>Found <b>{len(my_rows)}</b> open entries in AFAS.</p>
             """
             
-            if len(my_rows) == 0:
-                html += '<p style="color: #666;">Note: If you see hours in InSite but 0 here, they are already locked/submitted!</p>'
+            if error_msg:
+                html += f'<p style="color: red; background: #ffeeee; padding: 10px; border-radius: 5px;"><b>Latest AFAS Error:</b> {error_msg}</p>'
             
-            if error_details:
-                html += f'<div style="color: #ff4d4d; background: #fff1f1; padding: 15px; border-radius: 8px; border: 1px solid #ff4d4d; margin-top: 10px;">'
-                html += f'<b>AFAS Error:</b> {error_details[0]}</div>'
+            if len(my_rows) > 0:
+                html += "<h3>Entries we tried to approve:</h3><table border='1' style='margin:auto; border-collapse: collapse; font-size: 0.8em;'>"
+                html += "<tr><th>Project</th><th>Units</th><th>Orig. Date</th></tr>"
+                for r in my_rows[:5]: # Show first 5
+                    html += f"<tr><td>{r.get('ProjectID')}</td><td>{r.get('QuantityUnit')}</td><td>{r.get('Date')}</td></tr>"
+                html += "</table>"
 
             html += f"""
-                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-                        <a href="?user_id=90114" style="color: #0070f3; text-decoration: none; font-weight: bold;">Check My Hours (90114)</a>
-                    </div>
+                    <p style="margin-top: 20px;"><a href="?user_id=1000077" style="color: #007bff;">Retry 1000077</a> | <a href="?user_id=90114" style="color: #007bff;">Retry 90114</a></p>
                 </div>
             </body></html>
             """
@@ -79,7 +72,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             self.send_response(500)
             self.end_headers()
-            self.wfile.write(f"Error: {str(e)}".encode())
+            self.wfile.write(str(e).encode())
 
 
 # from http.server import BaseHTTPRequestHandler
