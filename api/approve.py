@@ -28,7 +28,7 @@ class handler(BaseHTTPRequestHandler):
                 "PrId": template.get('Project'),   
                 "ItId": template.get('Itemcode'), 
                 "Qu": 8.0,
-                "Da": "2025-01-16" # Exact date from your screenshot
+                "Da": "2024-01-16" # Exact date from your screenshot
             }}}}
             
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
