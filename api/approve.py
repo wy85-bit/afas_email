@@ -24,7 +24,7 @@ class handler(BaseHTTPRequestHandler):
 
             # 3. CLONE: Using a safe date and the template's project info
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "90114",
+                "EmId": "1000994",
                 "PrId": template.get('Project'),   
                 "ItId": template.get('Itemcode'), 
                 "Qu": 8.0,
