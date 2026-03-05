@@ -16,19 +16,17 @@ class handler(BaseHTTPRequestHandler):
             afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1000", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
             
-            # 2. THE MATCH: Using the short names from your AFAS wizard (image_21d58d.png)
-            # We search for any row where Bkjr. is 2026 or 2025 (to get a template)
+            # 2. MATCHING: We now use the short labels (with dots) from your screenshot image_21d58d.png
             template = next((r for r in all_rows if str(r.get('Bkjr.')) in ["2025", "2026"]), None)
             
             if not template:
-                # This debug info will now show the REAL labels (Bkjr., Prj., etc.)
                 return self.send_debug_page(len(all_rows), all_rows[0] if all_rows else {})
 
-            # 3. THE CLONE: Using the labels from your new connector
+            # 3. CLONE: Using 'Prj.' and 'Mdw.' and 'Code'
             payload = {"PtRealization": {"Element": {"Fields": {
                 "EmId": "90114",
                 "PrId": template.get('Prj.'),
-                "ItId": template.get('Code'), # This matches 'Itemcode' in your wizard
+                "ItId": template.get('Code'), 
                 "Qu": 8.0,
                 "Da": "2026-02-25" 
             }}}}
@@ -46,7 +44,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         debug_info = json.dumps(sample, indent=4)
-        html = f"<h1>⚠️ Almost There!</h1><p>Scanning {count} rows. Need a template row.</p><h3>Current Data View:</h3><pre>{debug_info}</pre>"
+        html = f"<h1>⚠️ Template Found?</h1><p>Scanning {count} rows.</p><h3>Data Keys AFAS is sending:</h3><pre>{debug_info}</pre>"
         self.wfile.write(html.encode())
 
     def send_success_page(self, success, template, resp_text):
@@ -54,8 +52,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         status = "✅ Success!" if success else "❌ Failed"
-        # Using Bkjr. for the success message
-        html = f"<h1>{status}</h1><p>Cloned from {template.get('Bkjr.')} Template to Feb 25, 2026.</p><p>{resp_text}</p>"
+        html = f"<h1>{status}</h1><p>Cloned from {template.get('Bkjr.')} to Feb 25, 2026.</p><p>{resp_text}</p>"
         self.wfile.write(html.encode())
 
 
