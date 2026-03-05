@@ -5,73 +5,86 @@ from urllib.parse import urlparse, parse_qs
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
-GET_CONNECTOR = "Cloning_Data_Winnie" # Matches your setup in image_24f102.png
+GET_CONNECTOR = "Cloning_Data_Winnie" 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         query = parse_qs(urlparse(self.path).query)
-        # Defaulting to 90114 since that's where our padlocked hours are
         user_id = query.get('user_id', ['90114'])[0] 
         
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. FETCH DATA FROM YOUR CUSTOM CONNECTOR
+            # 1. FETCH THE 100 ROWS
             afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
             
-            # 2. THE WIDE SEARCH LOGIC
-            # We look for user 90114 and an 8.0 hour entry. 
-            # We removed the strict 'Gefactureerd == True' check to see if we can find the rows.
-            template = next((r for r in all_rows if str(r.get('Mdw.')) == str(user_id) and float(r.get('Aant.', 0)) == 8.0), None)
+            # 2. INSPECTION LOGIC
+            # Let's see what the first row actually looks like to check the labels
+            sample_row = all_rows[0] if all_rows else {}
             
-            if not template:
-                # If we still fail, let's show what the script actually "sees" to troubleshoot
-                return self.send_error_page(f"No 8-hour rows found for {user_id}. Found {len(all_rows)} total rows in connector.")
+            # Use a very flexible search: check if user_id is anywhere in the row
+            template = None
+            for r in all_rows:
+                # Check if 90114 is in the Medewerker field (Mdw.)
+                if str(r.get('Mdw.', '')).strip() == str(user_id).strip():
+                    # Check if the hours (Aant.) are roughly 8
+                    try:
+                        hours = float(r.get('Aant.', 0))
+                        if hours == 8.0:
+                            template = r
+                            break
+                    except: continue
 
-            # 3. THE CLONE (Targeting Feb 25 to bypass period errors)
+            if not template:
+                # If it still fails, show the user EXACTLY what the first row looks like
+                return self.send_debug_page(user_id, len(all_rows), sample_row)
+
+            # 3. CLONE (If found)
             payload = {"PtRealization": {"Element": {"Fields": {
                 "EmId": user_id,
-                "PrId": template.get('Prj.'),   # Using the 'Prj.' label from your screen
-                "ItId": template.get('Code'),   # Using the 'Code' label from your screen
+                "PrId": template.get('Prj.'),
+                "ItId": template.get('Code'),
                 "Qu": 8.0,
                 "Da": "2026-02-25" 
             }}}}
             
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
-            success = post_resp.status_code in [200, 201]
-
-            # 4. RESPONSE PAGE
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            
-            color = "green" if success else "red"
-            html = f"""
-            <html><body style="font-family: sans-serif; text-align: center; padding: 50px; background: #f4f7f6;">
-                <div style="background: white; border-top: 10px solid {color}; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-                    <h1 style="color: {color};">{'✅ Clone Successful' if success else '❌ Clone Failed'}</h1>
-                    <p>Found Template Date: <b>{template.get('Datum')}</b></p>
-                    <p>Cloned to Date: <b>2026-02-25</b></p>
-                    <p>Project: <b>{template.get('Prj.')}</b> | Work Code: <b>{template.get('Code')}</b></p>
-                    <hr>
-                    <p style="font-size: 0.8em; color: #666;">AFAS Response: {post_resp.text}</p>
-                </div>
-            </body></html>
-            """
-            self.wfile.write(html.encode())
+            self.send_success_page(post_resp.status_code in [200, 201], template, post_resp.text)
 
         except Exception as e:
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(f"System Error: {str(e)}".encode())
+            self.send_error(str(e))
 
-    def send_error_page(self, msg):
+    def send_debug_page(self, user_id, count, sample):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
-        self.wfile.write(f"<div style='font-family:sans-serif; text-align:center; padding:50px;'><h1>⚠️ Search Update</h1><p>{msg}</p><a href='/api/approve?user_id=90114'>Retry for 90114</a></div>".encode())
+        debug_info = json.dumps(sample, indent=4)
+        html = f"""
+        <h1>🔍 Debugging Template Search</h1>
+        <p>Searching for User: <b>{user_id}</b> with 8 hours.</p>
+        <p>Connector returned <b>{count}</b> rows.</p>
+        <hr>
+        <h3>Example Row Data (What AFAS is actually sending):</h3>
+        <pre style="background:#eee; padding:10px;">{debug_info}</pre>
+        <p><i>If you don't see "90114" in the data above, the connector isn't pulling your data yet.</i></p>
+        """
+        self.wfile.write(html.encode())
+
+    def send_success_page(self, success, template, resp_text):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        msg = "✅ Clone Successful" if success else "❌ Clone Failed"
+        self.wfile.write(f"<h1>{msg}</h1><p>From: {template.get('Datum')}</p><p>{resp_text}</p>".encode())
+
+    def send_error(self, err):
+        self.send_response(500)
+        self.end_headers()
+        self.wfile.write(f"System Error: {err}".encode())
+
+
 
 
 # from http.server import BaseHTTPRequestHandler
