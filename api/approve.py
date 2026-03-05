@@ -12,22 +12,23 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # FETCH DATA
+            # 1. FETCH DATA
             afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1000", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
             
-            # THE MATCH: We use the short titles (Bkjr. and Aant.) from your new screen
+            # 2. MATCHING: We now use the short labels (with dots) from your new screen
+            # Look for 2026 (template) OR just pull the most recent 2025 row to test
             template = next((r for r in all_rows if str(r.get('Bkjr.')) == "2026" and float(r.get('Aant.', 0)) == 8.0), None)
             
             if not template:
-                # This debug page will now show the REAL labels so we can see why it missed
+                # This debug info will now show the REAL labels (Bkjr., Prj., etc.)
                 return self.send_debug_page(len(all_rows), all_rows[0] if all_rows else {})
 
-            # THE CLONE: Using 'Prj.' from your new connector
+            # 3. CLONE: Using 'Prj.' and 'Mdw.' from your new connector
             payload = {"PtRealization": {"Element": {"Fields": {
                 "EmId": "90114",
                 "PrId": template.get('Prj.'),
-                "ItId": "NF", # Using the 'NF' code seen in your previous data
+                "ItId": "NF", 
                 "Qu": 8.0,
                 "Da": "2026-02-25" 
             }}}}
@@ -55,6 +56,7 @@ class handler(BaseHTTPRequestHandler):
         status = "✅ Success!" if success else "❌ Failed"
         html = f"<h1>{status}</h1><p>Cloned from {template.get('Bkjr.')} to Feb 25, 2026.</p><p>{resp_text}</p>"
         self.wfile.write(html.encode())
+
 
 # from http.server import BaseHTTPRequestHandler
 # import base64, requests, json, datetime
