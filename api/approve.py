@@ -5,33 +5,36 @@ from urllib.parse import urlparse, parse_qs
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
-# Using your new custom connector name from image_24f102.png
-GET_CONNECTOR = "Cloning_Data_Winnie" 
+GET_CONNECTOR = "Cloning_Data_Winnie" # Matches your setup in image_24f102.png
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         query = parse_qs(urlparse(self.path).query)
+        # Defaulting to 90114 since that's where our padlocked hours are
         user_id = query.get('user_id', ['90114'])[0] 
         
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. FETCH THE GOLD STANDARD (Padlocked February entries)
+            # 1. FETCH DATA FROM YOUR CUSTOM CONNECTOR
             afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
             
-            # Find the first padlocked 8-hour entry for our user
-            template = next((r for r in all_rows if str(r.get('Medewerker')) == str(user_id) and r.get('Gefactureerd') == True), None)
+            # 2. THE WIDE SEARCH LOGIC
+            # We look for user 90114 and an 8.0 hour entry. 
+            # We removed the strict 'Gefactureerd == True' check to see if we can find the rows.
+            template = next((r for r in all_rows if str(r.get('Mdw.')) == str(user_id) and float(r.get('Aant.', 0)) == 8.0), None)
             
             if not template:
-                return self.send_error_page("No padlocked hours found for cloning.")
+                # If we still fail, let's show what the script actually "sees" to troubleshoot
+                return self.send_error_page(f"No 8-hour rows found for {user_id}. Found {len(all_rows)} total rows in connector.")
 
-            # 2. CREATE THE CLONE (Targeting Feb 25 to bypass period errors)
+            # 3. THE CLONE (Targeting Feb 25 to bypass period errors)
             payload = {"PtRealization": {"Element": {"Fields": {
                 "EmId": user_id,
-                "PrId": template.get('Project'),
-                "ItId": template.get('Itemcode'),
+                "PrId": template.get('Prj.'),   # Using the 'Prj.' label from your screen
+                "ItId": template.get('Code'),   # Using the 'Code' label from your screen
                 "Qu": 8.0,
                 "Da": "2026-02-25" 
             }}}}
@@ -39,18 +42,21 @@ class handler(BaseHTTPRequestHandler):
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
             success = post_resp.status_code in [200, 201]
 
-            # 3. SHOW THE RESULT
+            # 4. RESPONSE PAGE
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
             
+            color = "green" if success else "red"
             html = f"""
-            <html><body style="font-family: sans-serif; text-align: center; padding: 50px;">
-                <div style="border: 2px solid {'green' if success else 'red'}; padding: 20px; border-radius: 10px; display: inline-block;">
-                    <h1>{'✅ Success!' if success else '❌ Clone Failed'}</h1>
-                    <p>Found padlocked template from: <b>{template.get('Datum')}</b></p>
-                    <p>Attempted to clone 8 hours to: <b>2026-02-25</b></p>
-                    {'<p style="color: red;">' + post_resp.text + '</p>' if not success else ''}
+            <html><body style="font-family: sans-serif; text-align: center; padding: 50px; background: #f4f7f6;">
+                <div style="background: white; border-top: 10px solid {color}; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    <h1 style="color: {color};">{'✅ Clone Successful' if success else '❌ Clone Failed'}</h1>
+                    <p>Found Template Date: <b>{template.get('Datum')}</b></p>
+                    <p>Cloned to Date: <b>2026-02-25</b></p>
+                    <p>Project: <b>{template.get('Prj.')}</b> | Work Code: <b>{template.get('Code')}</b></p>
+                    <hr>
+                    <p style="font-size: 0.8em; color: #666;">AFAS Response: {post_resp.text}</p>
                 </div>
             </body></html>
             """
@@ -59,13 +65,13 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             self.send_response(500)
             self.end_headers()
-            self.wfile.write(str(e).encode())
+            self.wfile.write(f"System Error: {str(e)}".encode())
 
     def send_error_page(self, msg):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
-        self.wfile.write(f"<h1>Error</h1><p>{msg}</p>".encode())
+        self.wfile.write(f"<div style='font-family:sans-serif; text-align:center; padding:50px;'><h1>⚠️ Search Update</h1><p>{msg}</p><a href='/api/approve?user_id=90114'>Retry for 90114</a></div>".encode())
 
 
 # from http.server import BaseHTTPRequestHandler
