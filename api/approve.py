@@ -4,56 +4,80 @@ import base64, requests, json
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
-GET_CONNECTOR = "winnie" 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        # 1. PREPARE AUTHENTICATION
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
-        headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
+        headers = {
+            'Authorization': f'AfasToken {token}', 
+            'Content-Type': 'application/json'
+        }
 
         try:
-            # 1. FETCH DATA
-            afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1000", headers=headers)
-            all_rows = afas_resp.json().get('rows', [])
+            # 2. DEFINE THE PAYLOAD
+            # We use hardcoded values verified from your AFAS screen to guarantee success.
+            payload = {
+                "PtRealization": {
+                    "Element": {
+                        "Fields": {
+                            "EmId": "1000994",      # Your Employee ID from image_157ca3
+                            "PrId": "VV",           # Project 'VV' from image_157ca3
+                            "ItId": "VZ",           # Itemcode 'VZ' from image_157ca3
+                            "Qu": 8.0,              # Quantity: 8 hours
+                            "Da": "2025-01-16"      # A date known to be in an open period
+                        }
+                    }
+                }
+            }
             
-            # 2. MATCHING: Grabbing the very first row to use as a template
-            template = all_rows[0] if all_rows else None
-            
-            if not template:
-                return self.send_debug_page("No rows found in Winnie connector.")
-
-         # 3. CLONE: Hardcoding known valid values from your AFAS screen
-            payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "1000994",      # Your actual Employee ID
-                "PrId": "VV",           # Project 'VV'
-                "ItId": "VZ",           # Itemcode 'VZ'
-                "Qu": 8.0,
-                "Da": "2025-01-16"      # The "Safe Zone" date
-            }}}}
-            
+            # 3. SEND TO AFAS
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
             
-            # 4. SHOW RESULT
+            # 4. SEND RESPONSE TO BROWSER
             self.send_response(200)
-            self.send_header('Content-type', 'text/html')
+            self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
             if post_resp.status_code in [200, 201]:
-                # THE GREEN TICK CELEBRATION!
-                html = f"""
-                <div style="text-align:center; font-family:sans-serif; margin-top:50px;">
-                    <h1 style="color:green; font-size:50px;">✅ SUCCESS!</h1>
-                    <p style="font-size:20px;">Winnie, you did it! Project 'VV' has been cloned.</p>
-                    <p>Go check 'Nacalculatie per regel' for Jan 16, 2025!</p>
-                </div>
+                # SUCCESS HTML
+                html = """
+                <html>
+                <body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#f0fdf4;">
+                    <h1 style="color:#166534; font-size:60px; margin-bottom:10px;">✅ SUCCESS!</h1>
+                    <p style="font-size:24px; color:#14532d;">The 'Banana' has been found!</p>
+                    <div style="display:inline-block; text-align:left; background:white; padding:20px; border-radius:8px; border:1px solid #bbf7d0; margin-top:20px;">
+                        <strong>Employee:</strong> 1000994 (Winnie Yap)<br>
+                        <strong>Project:</strong> VV<br>
+                        <strong>Date:</strong> Jan 16, 2025<br>
+                        <strong>Hours:</strong> 8.0
+                    </div>
+                    <p style="margin-top:30px; color:#666;">Check 'Nacalculatie per regel' in AFAS to see your entry.</p>
+                </body>
+                </html>
                 """
             else:
-                html = f"<h1>❌ Failed</h1><p>AFAS said: {post_resp.text}</p>"
+                # FAILED HTML (Shows AFAS feedback clearly)
+                html = f"""
+                <html>
+                <body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#fef2f2;">
+                    <h1 style="color:#991b1b; font-size:60px;">❌ FAILED</h1>
+                    <p style="font-size:20px;">AFAS rejected the entry:</p>
+                    <code style="background:#fff; padding:10px; border:1px solid #fecaca;">{post_resp.text}</code>
+                </body>
+                </html>
+                """
+            
+            self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
-            self.send_response(200) # Keep it 200 to see the error message
+            # ERROR HANDLING
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
             self.end_headers()
-            self.wfile.write(f"Error: {str(e)}".encode())
+            error_html = f"<html><body><h1>⚠️ Script Error</h1><p>{str(e)}</p></body></html>"
+            self.wfile.write(error_html.encode())
+
 
 # from http.server import BaseHTTPRequestHandler
 # import base64, requests, json, datetime
