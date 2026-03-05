@@ -14,7 +14,9 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             # 1. FETCH DATA
-            afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}", headers=headers)
+            # afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}", headers=headers)
+            # Added skip=0 and take=1000 to grab a much larger chunk of data
+            afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1000", headers=headers)
             all_rows = afas_resp.json().get('rows', [])
             
             # 2. THE 2026 FILTER
