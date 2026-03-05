@@ -1,44 +1,31 @@
 from http.server import BaseHTTPRequestHandler
 import base64, requests, json
+from datetime import datetime
 
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
-GET_CONNECTOR = "winnie" 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
-        try:
-            # 1. FETCH - Find the most recent "Safe Date" in your system
-            afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1", headers=headers)
-            all_rows = afas_resp.json().get('rows', [])
-            
-            if not all_rows:
-                # If the connector is empty, we fall back to the known Monday from your screen
-                safe_date = "2025-12-29"
-                project = "VV"
-                item = "VZ"
-            else:
-                # We use the date AFAS already has on file
-                safe_date = all_rows[0].get('Datum')
-                project = all_rows[0].get('Project')
-                item = all_rows[0].get('Itemcode')
+        # Automatically get TODAY'S date in the YYYY-MM-DD format AFAS requires
+        today_date = datetime.now().strftime("%Y-%m-%d")
 
-            # 2. CLONE - Using your ID 1000994 and the Safe Date
+        try:
+            # CLONE: Using your real ID 1000994 and TODAY'S date
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "1000994",      # Your verified ID (image_157ca3)
-                "PrId": project,        
-                "ItId": item,           
+                "EmId": "1000994",      # Your verified ID
+                "PrId": "VV",           # Project 'VV'
+                "ItId": "VZ",           # Itemcode 'VZ'
                 "Qu": 8.0,
-                "Da": "2026-03-05"        # This is the "Safe Zone" date
+                "Da": today_date        # Dynamic date for today
             }}}}
             
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
             
-            # 3. SHOW RESULT
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
@@ -48,14 +35,21 @@ class handler(BaseHTTPRequestHandler):
                 <html>
                 <body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#f0fdf4;">
                     <h1 style="color:#166534; font-size:60px;">✅ SUCCESS!</h1>
-                    <p style="font-size:24px;">The Banana has been found!</p>
-                    <p>Cloned {project} for {safe_date}.</p>
+                    <p style="font-size:24px;">Winnie, you did it! Entry created for {today_date}.</p>
                 </body>
                 </html>
                 """
             else:
-                html = f"<html><body style='text-align:center; font-family:sans-serif; padding-top:100px;'><h1>❌ Failed</h1><p>AFAS said: {post_resp.text}</p></body></html>"
-            
+                # Displays the error clearly so we can troubleshoot further if needed
+                html = f"""
+                <html>
+                <body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#fef2f2;">
+                    <h1 style="color:#991b1b; font-size:60px;">❌ FAILED</h1>
+                    <p style="font-size:20px;">AFAS rejected the entry for {today_date}:</p>
+                    <code style="background:#fff; padding:10px; border:1px solid #fecaca;">{post_resp.text}</code>
+                </body>
+                </html>
+                """
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
