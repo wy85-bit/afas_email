@@ -30,14 +30,15 @@ class handler(BaseHTTPRequestHandler):
                 item = "VZ"
 
             # 3. CLONE - Using your real ID 1000994 and the Safe Date
+           # 3. CLONE - Using your real ID and a formatted date
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "1000364",      # Frank Aanhane
-                "PrId": project,        # Valid Project
-                "ItId": item,           # Valid Itemcode
+                "EmId": "1000364",
+                "PrId": project,
+                "ItId": item,
                 "Qu": 8.0,
-                "Da": safe_date         # The date AFAS already likes!
-            }}}}
-            
+                # AFAS sometimes insists on this specific timestamp format
+                "Da": f"{safe_date}T00:00:00" 
+            }}}}       
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
             
             # 4. SHOW RESULT
