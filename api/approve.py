@@ -17,13 +17,15 @@ class handler(BaseHTTPRequestHandler):
             all_rows = afas_resp.json().get('rows', [])
             
             # 2. MATCH - If we find a row, we use THAT date (the Safe Zone)
+            # 2. MATCH - If we find a row, we use THAT date (the Safe Zone)
             if all_rows:
                 safe_date = all_rows[0].get('Datum')
                 project = all_rows[0].get('Project')
                 item = all_rows[0].get('Itemcode')
             else:
-                # Fallback to the Monday from your screen if connector is empty
-                safe_date = "2025-12-29" 
+                # UPDATED: Moving away from the 2026 boundary (2025-12-29)
+                # to a guaranteed open period in mid-2025.
+                safe_date = "2025-06-16" 
                 project = "VV"
                 item = "VZ"
 
