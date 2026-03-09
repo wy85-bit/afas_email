@@ -29,7 +29,7 @@ class handler(BaseHTTPRequestHandler):
 
             # 3. CLONE - Using your real ID 1000994 and the Safe Date
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "1000994",      # Winnie Yap
+                "EmId": "1000364",      # Frank Aanhane
                 "PrId": project,        # Valid Project
                 "ItId": item,           # Valid Itemcode
                 "Qu": 8.0,
