@@ -23,9 +23,9 @@ class handler(BaseHTTPRequestHandler):
                 project = all_rows[0].get('Project')
                 item = all_rows[0].get('Itemcode')
             else:
-                # UPDATED: Moving away from the 2026 boundary (2025-12-29)
-                # to a guaranteed open period in mid-2025.
-                safe_date = "2025-06-16" 
+                # Testing the "Time Machine" theory: 
+                # Checking if the module is stuck in 2024.
+                safe_date = "2024-01-15" 
                 project = "VV"
                 item = "VZ"
 
