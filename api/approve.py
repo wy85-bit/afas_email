@@ -63,7 +63,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
             self.wfile.write(f"Error: {str(e)}".encode())
-
+            
 # from http.server import BaseHTTPRequestHandler
 # import base64, requests, json
 # from datetime import datetime
