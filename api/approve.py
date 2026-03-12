@@ -32,7 +32,7 @@ class handler(BaseHTTPRequestHandler):
             final_iso_date = f"{safe_date}T00:00:00"
 
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "1000364",      
+                "EmId": "1000994",      
                 "PrId": project,        
                 "ItId": item,           
                 "Qu": 8.0,
