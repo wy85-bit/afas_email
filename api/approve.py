@@ -28,14 +28,16 @@ class handler(BaseHTTPRequestHandler):
 
             # 2. CLONE - Using the explicit ISO timestamp
             # This 'T00:00:00' is often the secret to making the Projects module recognize the period
+            # 2. CLONE - Cleaned up date format
             payload = {"PtRealization": {"Element": {"Fields": {
-                "EmId": "1000364",      # Your Employee ID
-                "PrId": project,        # Project ID
-                "ItId": item,           # Item Code
-                "Qu": 8.0,              # Quantity (Hours)
-                "Da": f"{safe_date}T00:00:00" 
+                "EmId": "1000364",      
+                "PrId": project,        
+                "ItId": item,           
+                "Qu": 8.0,
+                # Make sure there is NO extra 'Z' or 'T00:00:00' at the end
+                "Da": "2025-01-16T00:00:00" 
             }}}}
-            
+                        
             post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
             
             # 3. SHOW RESULT
