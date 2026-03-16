@@ -16,9 +16,11 @@ class handler(BaseHTTPRequestHandler):
             # 1. PREPARE - Testing with a late 2025 date
 # --- UPDATE TO MATCH YOUR OPEN WEEK 8 ---
         try:
+         # try:
+            # Matching the successful manual line in your screenshot
             project = "VV" 
             item = "VZ"
-            # Using Feb 16, 2026 because Week 8 is confirmed open!
+            unit_type = "Z" # Added this to match your manual screen!
             test_date = "2026-02-16" 
             final_iso_date = f"{test_date}T00:00:00"
 
@@ -28,7 +30,8 @@ class handler(BaseHTTPRequestHandler):
                         "Fields": {
                             "EmId": "1000994",      
                             "PrId": project,        
-                            "ItId": item,           
+                            "ItId": item,
+                            "UnId": unit_type, # <--- Try adding this!
                             "Qu": 8.0,
                             "Da": final_iso_date 
                         }
