@@ -30,7 +30,15 @@ class handler(BaseHTTPRequestHandler):
             # 2. CLONE - The "Safe" date for the payload
             final_iso_date = f"{safe_date}T00:00:00"
 
-            payload = {"PtRealization": {"Element": {"Fields": {
+            # payload = {"PtRealization": {"Element": {"Fields": {
+            #     "EmId": "1000994",      
+            #     "PrId": project,        
+            #     "ItId": item,           
+            #     "Qu": 8.0,
+            #     "Da": final_iso_date 
+            # }}}}
+            # Change "PtRealization" to "PtRealizationWeek" inside the payload
+            payload = {"PtRealizationWeek": {"Element": {"Fields": {
                 "EmId": "1000994",      
                 "PrId": project,        
                 "ItId": item,           
