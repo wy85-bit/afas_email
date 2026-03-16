@@ -38,12 +38,18 @@ class handler(BaseHTTPRequestHandler):
             #     "Da": final_iso_date 
             # }}}}
             # Change "PtRealization" to "PtRealizationWeek" inside the payload
+            # Force a 2026 date that we know is open
+            safe_date = "2026-01-12" 
+            project = "VV" # Ensure this project exists in 2026
+            item = "VZ"   # Ensure this itemcode exists in 2026
+            
+            # ... and ensure the payload uses the Weekly label
             payload = {"PtRealizationWeek": {"Element": {"Fields": {
                 "EmId": "1000994",      
                 "PrId": project,        
                 "ItId": item,           
                 "Qu": 8.0,
-                "Da": final_iso_date 
+                "Da": f"{safe_date}T00:00:00" 
             }}}}
             
             # post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
