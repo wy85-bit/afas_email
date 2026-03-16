@@ -38,8 +38,9 @@ class handler(BaseHTTPRequestHandler):
                 "Da": final_iso_date 
             }}}}
             
-            post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
-            
+            # post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
+            # Change the endpoint from /PtRealization to /PtRealizationWeek
+            post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
             # 3. SHOW RESULT
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
