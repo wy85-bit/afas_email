@@ -11,14 +11,15 @@ class handler(BaseHTTPRequestHandler):
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
+# --- UPDATE JUST THIS SECTION IN YOUR HANDLER ---
         try:
-            # 1. PREPARE - We are forcing a 2026 date for the test
+            # 1. PREPARE - Testing with a late 2025 date
             project = "VV" 
             item = "VZ"
-            test_date = "2026-01-12" # A Monday in 2026
+            test_date = "2025-12-22" # Monday, late 2025
             final_iso_date = f"{test_date}T00:00:00"
 
-            # 2. PAYLOAD - Using the Weekly Connector we found in your settings
+            # 2. PAYLOAD
             payload = {
                 "PtRealizationWeek": {
                     "Element": {
@@ -33,9 +34,9 @@ class handler(BaseHTTPRequestHandler):
                 }
             }
             
-            # 3. POST - Hitting the Weekly endpoint
+            # 3. POST
             post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
-            
+# -----------------------------------------------            
             # 4. SHOW RESULT
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
