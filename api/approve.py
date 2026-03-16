@@ -12,14 +12,16 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
 # --- UPDATE JUST THIS SECTION IN YOUR HANDLER ---
-        try:
+        # try:
             # 1. PREPARE - Testing with a late 2025 date
+# --- UPDATE TO MATCH YOUR OPEN WEEK 8 ---
+        try:
             project = "VV" 
             item = "VZ"
-            test_date = "2025-12-22" # Monday, late 2025
+            # Using Feb 16, 2026 because Week 8 is confirmed open!
+            test_date = "2026-02-16" 
             final_iso_date = f"{test_date}T00:00:00"
 
-            # 2. PAYLOAD
             payload = {
                 "PtRealizationWeek": {
                     "Element": {
@@ -33,6 +35,7 @@ class handler(BaseHTTPRequestHandler):
                     }
                 }
             }
+# ----------------------------------------
             
             # 3. POST
             post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
