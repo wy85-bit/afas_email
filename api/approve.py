@@ -12,50 +12,31 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. FETCH - Looking for the latest existing entry
-            afas_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?skip=0&take=1", headers=headers)
-            all_rows = afas_resp.json().get('rows', [])
-            
-            if all_rows:
-                # Splitting to avoid the double-timestamp bug we saw earlier
-                raw_date = all_rows[0].get('Datum', "2025-12-29")
-                safe_date = raw_date.split('T')[0] 
-                project = all_rows[0].get('Project', "VV")
-                item = all_rows[0].get('Itemcode', "VZ")
-            else:
-                safe_date = "2025-12-29" 
-                project = "VV"
-                item = "VZ"
+            # 1. PREPARE - We are forcing a 2026 date for the test
+            project = "VV" 
+            item = "VZ"
+            test_date = "2026-01-12" # A Monday in 2026
+            final_iso_date = f"{test_date}T00:00:00"
 
-            # 2. CLONE - The "Safe" date for the payload
-            final_iso_date = f"{safe_date}T00:00:00"
-
-            # payload = {"PtRealization": {"Element": {"Fields": {
-            #     "EmId": "1000994",      
-            #     "PrId": project,        
-            #     "ItId": item,           
-            #     "Qu": 8.0,
-            #     "Da": final_iso_date 
-            # }}}}
-            # Change "PtRealization" to "PtRealizationWeek" inside the payload
-            # Force a 2026 date that we know is open
-            safe_date = "2026-01-12" 
-            project = "VV" # Ensure this project exists in 2026
-            item = "VZ"   # Ensure this itemcode exists in 2026
+            # 2. PAYLOAD - Using the Weekly Connector we found in your settings
+            payload = {
+                "PtRealizationWeek": {
+                    "Element": {
+                        "Fields": {
+                            "EmId": "1000994",      
+                            "PrId": project,        
+                            "ItId": item,           
+                            "Qu": 8.0,
+                            "Da": final_iso_date 
+                        }
+                    }
+                }
+            }
             
-            # ... and ensure the payload uses the Weekly label
-            payload = {"PtRealizationWeek": {"Element": {"Fields": {
-                "EmId": "1000994",      
-                "PrId": project,        
-                "ItId": item,           
-                "Qu": 8.0,
-                "Da": f"{safe_date}T00:00:00" 
-            }}}}
-            
-            # post_resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
-            # Change the endpoint from /PtRealization to /PtRealizationWeek
+            # 3. POST - Hitting the Weekly endpoint
             post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
-            # 3. SHOW RESULT
+            
+            # 4. SHOW RESULT
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
@@ -64,7 +45,7 @@ class handler(BaseHTTPRequestHandler):
                 html = f"""
                 <html><body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#f0fdf4;">
                     <h1 style="color:#166534; font-size:60px;">✅ SUCCESS!</h1>
-                    <p style="font-size:24px;">The Banana is yours! Cloned to {final_iso_date}.</p>
+                    <p style="font-size:24px;">The Banana is yours! Sent to {final_iso_date}.</p>
                 </body></html>
                 """
             else:
@@ -72,7 +53,7 @@ class handler(BaseHTTPRequestHandler):
                 <html><body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#fef2f2;">
                     <h1 style="color:#991b1b; font-size:60px;">❌ FAILED</h1>
                     <p>AFAS says: {post_resp.text}</p>
-                    <p>Sent Date: {final_iso_date}</p>
+                    <p style="color:blue; font-weight:bold;">Actually Sent: {final_iso_date}</p>
                 </body></html>
                 """
             self.wfile.write(html.encode('utf-8'))
