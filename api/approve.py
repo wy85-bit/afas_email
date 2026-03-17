@@ -16,34 +16,19 @@ class handler(BaseHTTPRequestHandler):
         
         payload = {
                "PtRealization": {
-
-    "Element": {
-
-      "Fields": {
-
-        "CreateDeclarations": true,
-
-        "GetPcIdAndPrId": true,
-
-        "DaTi": "2026-02-20",
-
-        "VaIt": "1",
-
-        "ItCd": "01",
-
-        "Qu": "8",
-
-        "EmId": "1000994",
-
-        "Ch": true,
-
-        "Ap": true,
-
-        "Pr": true,
-
-        "PcId": "105"
-
- 
+                "Element": {
+                    "Fields": {
+                        "CreateDeclarations": true,
+                        "GetPcIdAndPrId": true,
+                        "DaTi": "2026-02-20",
+                        "VaIt": "1",
+                        "ItCd": "01",
+                        "Qu": "8",
+                        "EmId": "1000994",
+                        "Ch": true,
+                        "Ap": true,
+                        "Pr": true,
+                        "PcId": "105" 
                     }
                 }
             }
