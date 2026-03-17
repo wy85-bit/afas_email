@@ -12,50 +12,37 @@ class handler(BaseHTTPRequestHandler):
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
-        # 1. FIND THE DRAFTS (Ticks)
-        # We query the Dossier items (-104 is usually Time Entries)
-        query_url = f"{BASE_URL}/KnWorkflow?filterfieldids=Type&filtervalues=-104&operatortypes=1"
+        # We are going to look for ANY active tasks assigned to you
+        # This is the 'Insite' workflow list
+        query_url = f"{BASE_URL}/KnWorkflow" 
         
         results = []
         try:
-            search_resp = requests.get(query_url, headers=headers)
-            data = search_resp.json()
+            resp = requests.get(query_url, headers=headers)
+            data = resp.json()
 
-            if 'rows' in data:
+            if 'rows' in data and len(data['rows']) > 0:
                 for row in data['rows']:
-                    subject_id = row.get('SbId')
+                    # We want to see the Subject ID and what the task is called
+                    sb_id = row.get('SbId')
+                    description = row.get('De', 'No Description')
+                    action_name = row.get('AcNm', 'No Action Name')
                     
-                    # 2. TRIGGER THE PADLOCK
-                    # We send a 'PUT' or 'POST' to move the workflow to the next step
-                    # 'AcNm' is the Action Name. Based on your screenshot, it's likely 'Indienen'
-                    workflow_payload = {
-                        "KnWorkflow": {
-                            "Element": {
-                                "Fields": {
-                                    "SbId": subject_id,
-                                    "AcNm": "Indienen", # This is the 'Indienen declaratie' button
-                                    "Cm": "Automated Padlock via Gemmy"
-                                }
-                            }
-                        }
-                    }
-                    
-                    lock_resp = requests.post(f"{BASE_URL}/KnWorkflow", headers=headers, json=workflow_payload)
-                    
-                    status = "🔒 Locked!" if lock_resp.status_code in [200, 201, 204] else "❌ Failed"
-                    results.append(f"Entry {subject_id}: {status}")
-            
+                    results.append(f"🔎 Found Entry {sb_id}: {description} | Action: {action_name}")
+            else:
+                results.append("🕵️‍♀️ Detective Report: The vault is empty. No active workflow items found.")
+
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            html = f"<html><body><h1>Padlock Operation</h1><pre>{'<br>'.join(results)}</pre></body></html>"
+            html = f"<html><body><h1>Padlock Diagnostic</h1><pre>{'<br>'.join(results)}</pre></body></html>"
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(f"Error: {str(e)}".encode())
+            self.wfile.write(f"Diagnostic Error: {str(e)}".encode())
 
 
 
