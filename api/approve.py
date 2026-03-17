@@ -15,15 +15,35 @@ class handler(BaseHTTPRequestHandler):
         test_date = "2026-03-16" 
         
         payload = {
-                "PtRealizationWeek": {
-                    "Element": {
-                        "Fields": {
-                            "EmId": "1000994",
-                            "PcOc": "105", # Putting this in quotes just in case
-                            "ItCd": "01",  # Back to '01' as per standard
-                            "Qu": 1.0,
-                            "Da": "2026-03-12" # The exact date of your manual success
-                        }
+               "PtRealization": {
+
+    "Element": {
+
+      "Fields": {
+
+        "CreateDeclarations": true,
+
+        "GetPcIdAndPrId": true,
+
+        "DaTi": "2026-02-20",
+
+        "VaIt": "1",
+
+        "ItCd": "01",
+
+        "Qu": "8",
+
+        "EmId": "1000994",
+
+        "Ch": true,
+
+        "Ap": true,
+
+        "Pr": true,
+
+        "PcId": "105"
+
+ 
                     }
                 }
             }
