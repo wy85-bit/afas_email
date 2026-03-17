@@ -15,15 +15,14 @@ class handler(BaseHTTPRequestHandler):
             }
     
         try:
-            # 1. DISCOVERY - Let's see what periods are open
-            # We fetch the first 5 periods to see the "Year" and "Period" format
-            get_url = f"{BASE_URL}/PtPeriod?take=5"
+            # 1. DISCOVERY - Asking AFAS for the valid calendar
+            # We use /PtPeriod to find out which dates the system likes
+            get_url = f"{BASE_URL}/PtPeriod?take=3"
             get_resp = requests.get(get_url, headers=headers)
             
-            # 2. THE DATA 
-            # If we don't know the date, let's use a very safe one 
-            # usually used in AFAS test environments
-            test_date = "2025-01-01" 
+            # 2. THE TARGET DATE
+            # Let's try a very standard 2025 date as a backup
+            test_date = "2025-01-06" # A Monday in early 2025
             final_iso_date = f"{test_date}T00:00:00"
 
             payload = {
@@ -40,29 +39,37 @@ class handler(BaseHTTPRequestHandler):
                 }
             }
             
-            # 3. POST
+            # 3. THE ATTEMPT
             post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
             
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            # 4. SHOW RESULT WITH DISCOVERY LOGS
-            discovery_info = get_resp.text[:500] # Just a snippet to keep it clean
-            
+            # 4. THE REVEAL
             if post_resp.status_code in [200, 201]:
-                html = f"<html><body><h1 style='color:green;'>✅ SUCCESS!</h1><p>Sent to {final_iso_date}</p></body></html>"
+                html = f"<html><body style='background-color:#f0fdf4; text-align:center; padding:50px;'><h1>✅ THE BANANA IS SECURED!</h1><p>Successfully posted to {final_iso_date}</p></body></html>"
             else:
+                # We show the error PLUS the calendar info we found
+                calendar_info = get_resp.text if get_resp.status_code == 200 else "Could not fetch calendar."
                 html = f"""
-                <html><body>
-                <h1 style='color:red;'>❌ STILL NO BANANA</h1>
-                <p><b>AFAS Error:</b> {post_resp.text}</p>
-                <hr>
-                <p><b>Discovery Info (Open Periods):</b> {discovery_info}</p>
+                <html><body style='font-family:sans-serif; padding:20px;'>
+                    <h1 style='color:red;'>❌ FAILED (BUT WE HAVE CLUES)</h1>
+                    <p><b>AFAS Error:</b> {post_resp.text}</p>
+                    <hr>
+                    <h3>🕵️‍♀️ Discovery Info (Look for "Year" and "BegDa"):</h3>
+                    <div style='background:#eee; padding:15px; border-radius:5px; word-wrap: break-word;'>
+                        <code>{calendar_info}</code>
+                    </div>
                 </body></html>
                 """
             
             self.wfile.write(html.encode('utf-8'))
+
+        except Exception as e:
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(f"Critical Script Error: {str(e)}".encode())
 
 
 # from http.server import BaseHTTPRequestHandler
