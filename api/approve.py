@@ -17,32 +17,29 @@ class handler(BaseHTTPRequestHandler):
 
         # Targeting Monday, March 16th
         test_date = "2026-03-16" 
-       # Target the specific project and item from your screenshot [image_14e811.png]
-        project_id = "105" # Tapfin | PGGM
-        item_code = "Directe uren" # Or the code '01' linked to it
         
         payload = {
-            "PtRealizationWeek": {
+            "PtRealization": {  # <--- Changed this to match the endpoint name
                 "Element": {
                     "Fields": {
-                        "EmId": "1000994",
-                        "PcId": project_id,
-                        "ItCd": "01",
-                        "Qu": "8.0",
-                        "DaTi": "2026-03-18", # Wednesday (The one with the tick)
-                        "VaIt": "1",
                         "CreateDeclarations": True,
+                        "ApprovWorkflow": True,
                         "GetPcIdAndPrId": True,
-                        
-                        # THE PADLOCK KEYS:
-                        "Ch": True,   # Chargeable (Geboekt)
-                        "Ap": True,   # Approved (Geaccordeerd)
-                        "Pr": True,   # Processed
-                        "Status": 10  # 10 is often 'Submitted' in AFAS workflows
+                        "DaTi": test_date,  # <--- Now using the test_date variable
+                        "VaIt": "1",
+                        "ItCd": "01",
+                        "Qu": "8",
+                        "EmId": "1000994",
+                        "Ch": True,
+                        "Ap": True,
+                        "Pr": True,
+                        "PcId": "105", 
+                        "Status":10
                     }
                 }
             }
         }
+
         try:
             # Posting to PtRealizationWeek
             resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
