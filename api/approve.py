@@ -15,20 +15,18 @@ class handler(BaseHTTPRequestHandler):
         test_date = "2026-03-16" 
         
         payload = {
-            "PtRealizationWeek": {
-                "Element": {
-                    "Fields": {
-                        "EmId": "1000994",
-                        "PcOc": 105,
-                        "ItCd": "1",
-                        "Qu": 1.0,
-                        # We are removing the 'T00:00:00' to see if a simple date string 
-                        # allows the API to auto-assign the correct period.
-                        "Da": test_date 
+                "PtRealizationWeek": {
+                    "Element": {
+                        "Fields": {
+                            "EmId": "1000994",
+                            "PcOc": "105", # Putting this in quotes just in case
+                            "ItCd": "01",  # Back to '01' as per standard
+                            "Qu": 1.0,
+                            "Da": "2026-03-12" # The exact date of your manual success
+                        }
                     }
                 }
             }
-        }
 
         try:
             resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
