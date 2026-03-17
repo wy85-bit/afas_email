@@ -35,6 +35,8 @@ class handler(BaseHTTPRequestHandler):
                         "Pr": True,
                         "PcId": "105",
                         "Status": 1
+                        "Submit": True,     # Extra push for the padlock
+                        "Approve": True
                        }
                 }
             }
