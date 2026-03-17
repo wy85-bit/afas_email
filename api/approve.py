@@ -12,19 +12,23 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # Using the exact date we just discovered in your verified connection!
-            test_date = "2025-01-16" 
-            final_iso_date = f"{test_date}T00:00:00"
+            # 1. First, ask the 'winnie' connector for the most recent valid date
+            get_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?take=1&sortfield=Datum&sortorder=desc", headers=headers)
+            
+            if get_resp.status_code != 200:
+                raise Exception(f"Could not find valid dates: {get_resp.text}")
 
+            # Extract the date from your existing records
+            valid_date_raw = get_resp.json()['rows'][0]['Datum']
+            # Convert "2025-01-16T00:00:00Z" to "2025-01-16T00:00:00"
+            target_date = valid_date_raw.replace('Z', '') 
+
+            # 2. Now, post a tiny 0.1 hour test to that EXACT known-good date
             payload = {
                 "PtRealizationWeek": {
                     "Element": {
                         "Fields": {
-                            "EmId": "1000994",      
-                            "PcOc": 105,
-                            "ItCd": "1",
-                            "Qu": 1.0, 
-                            "Da": final_iso_date 
+                            "EmId": "1000994", "PcOc": 105, "ItCd": "1", "Qu": 0.1, "Da": target_date
                         }
                     }
                 }
@@ -37,16 +41,16 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             
             if post_resp.status_code in [200, 201]:
-                html = f"<html><body><h1 style='color:green;'>🎉 FULL BANANA REACHED!</h1><p>Status: {post_resp.status_code}</p><pre>{post_resp.text}</pre></body></html>"
+                html = f"<html><body><h1 style='color:green;'>🍌 FULL BANANA!</h1><p>Posted to confirmed date: {target_date}</p></body></html>"
             else:
-                html = f"<html><body><h1 style='color:orange;'>🍌 Partial Banana: Connection is good, but date is tricky</h1><p>Status: {post_resp.status_code}</p><pre>{post_resp.text}</pre></body></html>"
+                html = f"<html><body><h1 style='color:orange;'>🌓 Getting Closer...</h1><p>Found Date: {target_date}</p><p>AFAS Response: {post_resp.text}</p></body></html>"
             
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(f"Script Error: {str(e)}".encode())
+            self.wfile.write(f"Detective Error: {str(e)}".encode())
 
 # from http.server import BaseHTTPRequestHandler
 # import base64, requests, json
