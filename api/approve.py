@@ -19,7 +19,7 @@ class handler(BaseHTTPRequestHandler):
         test_date = "2026-03-18" 
         
         payload = {
-            "PtRealizationWeek": {  # <--- Changed this to match the endpoint name
+            "PtRealization": {  # <--- Changed this to match the endpoint name
                 "Element": {
                     "Fields": {
                         "CreateDeclarations": True,
@@ -40,7 +40,7 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             # Posting to PtRealizationWeek
-            resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
+            resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
             
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
