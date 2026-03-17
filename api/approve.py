@@ -25,31 +25,20 @@ class handler(BaseHTTPRequestHandler):
         success_found = False
 
         try:
-            for d in dates_to_try:
-                payload = {
-                    "PtRealizationWeek": {
-                        "Element": {
-                            "Fields": {
-                                "EmId": "1000994", "PcOc": 105, "ItCd": "1", "Qu": 1.0, "Da": f"{d}T00:00:00"
-                            }
-                        }
-                    }
-                }
-                resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
-                
-                if resp.status_code in [200, 201]:
-                    results.append(f"✅ SUCCESS on {d}!")
-                    success_found = True
-                    break # Stop looking, we found the banana!
-                else:
-                    results.append(f"❌ {d}: {resp.status_code}")
-
+            # Let's try to fetch your employee record instead of posting hours
+            # This uses the 'winnie' connector you mentioned in your config
+            get_url = f"{BASE_URL}/{GET_CONNECTOR}?take=1"
+            resp = requests.get(get_url, headers=headers)
+            
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            status_text = "WE FOUND IT!" if success_found else "ALL DATES FAILED"
-            html = f"<html><body><h1>{status_text}</h1><pre>" + "\n".join(results) + "</pre></body></html>"
+            if resp.status_code == 200:
+                html = f"<html><body><h1 style='color:green;'>✅ CONNECTION VERIFIED!</h1><p>AFAS says: {resp.text[:500]}</p></body></html>"
+            else:
+                html = f"<html><body><h1 style='color:red;'>❌ CONNECTION FAILED</h1><p>Status: {resp.status_code}</p><pre>{resp.text}</pre></body></html>"
+            
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
