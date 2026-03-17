@@ -12,8 +12,8 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # Trying a date that matches your manual 'Week 8' success
-            test_date = "2026-02-16" 
+            # 1. TEST TODAY'S DATE
+            test_date = "2026-03-17" 
             final_iso_date = f"{test_date}T00:00:00"
 
             payload = {
@@ -30,21 +30,30 @@ class handler(BaseHTTPRequestHandler):
                 }
             }
             
+            # 2. TRY THE ALTERNATE CONNECTOR (To see if it exists)
+            check_conn = requests.get(f"{BASE_URL}/KnPeriod?take=1", headers=headers)
+            
             post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
             
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            # Simplified result page
-            html = f"<html><body><h1>AFAS Status: {post_resp.status_code}</h1><pre>{post_resp.text}</pre></body></html>"
+            html = f"""
+            <html><body>
+                <h1>AFAS Status: {post_resp.status_code}</h1>
+                <p><b>Tried Date:</b> {test_date}</p>
+                <pre>{post_resp.text}</pre>
+                <hr>
+                <p><b>KnPeriod Connector Check:</b> {check_conn.status_code} (200 = Found!)</p>
+            </body></html>
+            """
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
-            self.send_response(200) # Keep 200 to see the error on screen
+            self.send_response(200)
             self.end_headers()
-            self.wfile.write(f"Script Error: {str(e)}".encode())
-
+            self.wfile.write(f"Error: {str(e)}".encode())
 
 # from http.server import BaseHTTPRequestHandler
 # import base64, requests, json
