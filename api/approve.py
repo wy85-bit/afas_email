@@ -12,37 +12,52 @@ class handler(BaseHTTPRequestHandler):
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
-        # We are going to look for ANY active tasks assigned to you
-        # This is the 'Insite' workflow list
-        query_url = f"{BASE_URL}/KnWorkflow" 
-        
+        # Your Weekly Copy List
+        workdays = ["2026-03-16", "2026-03-17", "2026-03-18", "2026-03-19", "2026-03-20"]
         results = []
-        try:
-            resp = requests.get(query_url, headers=headers)
-            data = resp.json()
 
-            if 'rows' in data and len(data['rows']) > 0:
-                for row in data['rows']:
-                    # We want to see the Subject ID and what the task is called
-                    sb_id = row.get('SbId')
-                    description = row.get('De', 'No Description')
-                    action_name = row.get('AcNm', 'No Action Name')
-                    
-                    results.append(f"🔎 Found Entry {sb_id}: {description} | Action: {action_name}")
-            else:
-                results.append("🕵️‍♀️ Detective Report: The vault is empty. No active workflow items found.")
+        for day in workdays:
+            payload = {
+                "PtRealization": { 
+                    "Element": {
+                        "Fields": {
+                            "EmId": "1000994",
+                            "PcId": "105",
+                            "ItCd": "01",
+                            "Qu": "8",
+                            "Da": day,  # <--- CHANGED FROM DaTi TO Da
+                            "VaIt": "1",
+                            "CreateDeclarations": True,
+                            "GetPcIdAndPrId": True,
+                            "Ch": True, 
+                            "Ap": True, 
+                            "Pr": True,
+                            
+                            # THE PADLOCK SETTINGS
+                            "St": 1,        # 1 = Geaccordeerd (Approved/Locked)
+                            "Ue": True,     # Uren indienen (Submit)
+                            "In": True      # Indienen (Incur)
+                        }
+                    }
+                }
+            }
+            try:
+                resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
+                if resp.status_code in [200, 201]:
+                    results.append(f"✅ {day}: Padlock Success!")
+                else:
+                    # Capture the specific error from AFAS
+                    msg = resp.json().get('externalMessage', 'Unknown Error')
+                    results.append(f"❌ {day}: {msg}")
+            except Exception as e:
+                results.append(f"⚠️ {day}: Error {str(e)}")
 
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            
-            html = f"<html><body><h1>Padlock Diagnostic</h1><pre>{'<br>'.join(results)}</pre></body></html>"
-            self.wfile.write(html.encode('utf-8'))
-
-        except Exception as e:
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(f"Diagnostic Error: {str(e)}".encode())
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.end_headers()
+        
+        html = f"<html><body><h1>Weekly Padlock Operation</h1><pre>" + "<br>".join(results) + "</pre></body></html>"
+        self.wfile.write(html.encode('utf-8'))
 
 
 
