@@ -17,30 +17,50 @@ class handler(BaseHTTPRequestHandler):
 
         # Targeting Monday, March 16th
         test_date = "2026-03-19" 
-        
         payload = {
-            "PtRealization": {  # <--- Changed this to match the endpoint name
+            "PtRealization": {
                 "Element": {
                     "Fields": {
-                        "CreateDeclarations": True,
-                        "ApprovWorkflow": True,
-                        "GetPcIdAndPrId": True,
-                        "DaTi": test_date,  # <--- Now using the test_date variable
-                        "VaIt": "1",
-                        "ItCd": "01",
-                        "Qu": "8",
                         "EmId": "1000994",
-                        "Ch": True,
-                        "Ap": True,
-                        "Pr": True,
-                        "PcId": "105",
-                        "Status": 1,
-                        "Submit": True,     # Extra push for the padlock
-                        "Approve": True
-                       }
+                        "PcId": "105", 
+                        "ItCd": "01",
+                        "Qu": "8.0",
+                        "Da": test_date, # Try 'Da' instead of 'DaTi' for this endpoint
+                        "VaIt": 1,
+                        
+                        # THE PADLOCK COMBO:
+                        "St": 1,            # 1 = Finalized / Fixed
+                        "Ue": True,         # Uren indienen (Submit)
+                        "In": True,         # Indienen (Incur)
+                        "ApprovWorkflow": True,
+                        "CreateDeclarations": True
+                    }
                 }
             }
         }
+        # payload = {
+        #     "PtRealization": {  # <--- Changed this to match the endpoint name
+        #         "Element": {
+        #             "Fields": {
+        #                 "CreateDeclarations": True,
+        #                 "ApprovWorkflow": True,
+        #                 "GetPcIdAndPrId": True,
+        #                 "DaTi": test_date,  # <--- Now using the test_date variable
+        #                 "VaIt": "1",
+        #                 "ItCd": "01",
+        #                 "Qu": "8",
+        #                 "EmId": "1000994",
+        #                 "Ch": True,
+        #                 "Ap": True,
+        #                 "Pr": True,
+        #                 "PcId": "105",
+        #                 "Status": 1,
+        #                 "Submit": True,     # Extra push for the padlock
+        #                 "Approve": True
+        #                }
+        #         }
+        #     }
+        # }
 
         try:
             # Posting to PtRealizationWeek
