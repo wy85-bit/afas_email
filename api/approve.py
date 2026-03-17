@@ -8,62 +8,49 @@ GET_CONNECTOR = "winnie"
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
-        headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
-
-# --- UPDATE JUST THIS SECTION IN YOUR HANDLER ---
-        # try:
-            # 1. PREPARE - Testing with a late 2025 date
-# --- UPDATE TO MATCH YOUR OPEN WEEK 8 ---
-    	try:
-            test_date = "2026-02-16" 
-            final_iso_date = f"{test_date}T00:00:00"
-
-            # Perfect indentation is key here!
-            payload = {
-                "PtRealizationWeek": {
-                    "Element": {
-                        "Fields": {
-                            "EmId": "1000994",      
-                            "PcOc": 105,
-                            "ItCd": "01",  # Wrapped in quotes to be safe!
-                            "Qu": 8.0,
-                            "Da": final_iso_date 
+            token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
+            headers = {
+                'Authorization': f'AfasToken {token}', 
+                'Content-Type': 'application/json'
+            }
+    
+            try:
+                test_date = "2026-02-16" 
+                final_iso_date = f"{test_date}T00:00:00"
+    
+                # This structure must be exactly 4-space indented
+                payload = {
+                    "PtRealizationWeek": {
+                        "Element": {
+                            "Fields": {
+                                "EmId": "1000994",      
+                                "PcOc": 105,
+                                "ItCd": "01",
+                                "Qu": 8.0,
+                                "Da": final_iso_date 
+                            }
                         }
                     }
                 }
-            }
-# ----------------------------------------
-            
-            # 3. POST
-            post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
-# -----------------------------------------------            
-            # 4. SHOW RESULT
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            
-            if post_resp.status_code in [200, 201]:
-                html = f"""
-                <html><body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#f0fdf4;">
-                    <h1 style="color:#166534; font-size:60px;">✅ SUCCESS!</h1>
-                    <p style="font-size:24px;">The Banana is yours! Sent to {final_iso_date}.</p>
-                </body></html>
-                """
-            else:
-                html = f"""
-                <html><body style="text-align:center; font-family:sans-serif; padding-top:100px; background-color:#fef2f2;">
-                    <h1 style="color:#991b1b; font-size:60px;">❌ FAILED</h1>
-                    <p>AFAS says: {post_resp.text}</p>
-                    <p style="color:blue; font-weight:bold;">Actually Sent: {final_iso_date}</p>
-                </body></html>
-                """
-            self.wfile.write(html.encode('utf-8'))
-
-        except Exception as e:
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(f"Error: {str(e)}".encode())
+                
+                # Sending the request to AFAS
+                post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
+                
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                
+                if post_resp.status_code in [200, 201]:
+                    html = f"<html><body><h1>✅ SUCCESS!</h1><p>Sent to {final_iso_date}</p></body></html>"
+                else:
+                    html = f"<html><body><h1>❌ FAILED</h1><p>AFAS says: {post_resp.text}</p></body></html>"
+                
+                self.wfile.write(html.encode('utf-8'))
+    
+            except Exception as e:
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(f"Error: {str(e)}".encode())
 
 
 
