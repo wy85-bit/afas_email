@@ -12,7 +12,7 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            test_date = "2026-03-11" # Last Wednesday
+            test_date = "2025-01-06" # The first Monday of 2025
             final_iso_date = f"{test_date}T00:00:00"
 
             payload = {
@@ -21,9 +21,10 @@ class handler(BaseHTTPRequestHandler):
                         "Fields": {
                             "EmId": "1000994",      
                             "PcOc": 105,
-                            "ItCd": "1",  # Try '1' instead of '01'
-                            "Qu": 1.0,    # Try 1 hour instead of 8, just to be safe
-                            "Da": "2026-03-11T00:00:00" 
+                            "ItCd": "1",
+                            "UnTy": "Z",  # Adding Unit Type 'Z' as seen in your manual successful line
+                            "Qu": 1.0,    
+                            "Da": "2025-01-06T00:00:00" 
                         }
                     }
                 }
