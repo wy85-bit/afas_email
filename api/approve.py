@@ -25,7 +25,7 @@ class handler(BaseHTTPRequestHandler):
                             "Fields": {
                                 "EmId": "1000994",      
                                 "PcOc": 105,
-                                "ItCd": "01",
+                                "ItCd": 1,
                                 "Qu": 8.0,
                                 "Da": final_iso_date 
                             }
