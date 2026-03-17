@@ -21,9 +21,9 @@ class handler(BaseHTTPRequestHandler):
                         "Fields": {
                             "EmId": "1000994",      
                             "PcOc": 105,
-                            "ItCd": "01",
-                            "Qu": 8.0,
-                            "Da": final_iso_date 
+                            "ItCd": "1",  # Try '1' instead of '01'
+                            "Qu": 1.0,    # Try 1 hour instead of 8, just to be safe
+                            "Da": "2026-03-11T00:00:00" 
                         }
                     }
                 }
