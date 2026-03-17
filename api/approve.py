@@ -18,7 +18,7 @@ class handler(BaseHTTPRequestHandler):
         # Targeting Monday, March 16th
         test_date = "2026-03-16" 
        # Target the specific project and item from your screenshot [image_14e811.png]
-        project_id = "000270" # Tapfin | PGGM
+        project_id = "105" # Tapfin | PGGM
         item_code = "Directe uren" # Or the code '01' linked to it
         
         payload = {
