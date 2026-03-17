@@ -10,77 +10,138 @@ BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
-        headers = {
-            'Authorization': f'AfasToken {token}', 
-            'Content-Type': 'application/json'
-        }
+        headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
-        # Targeting Monday, March 16th
-        test_date = "2026-03-19" 
-        payload = {
-            "PtRealization": {
-                "Element": {
-                    "Fields": {
-                        "EmId": "1000994",
-                        "PcId": "105", 
-                        "ItCd": "01",
-                        "Qu": "8.0",
-                        "Da": test_date, # Try 'Da' instead of 'DaTi' for this endpoint
-                        "VaIt": 1,
-                        
-                        # THE PADLOCK COMBO:
-                        "St": 1,            # 1 = Finalized / Fixed
-                        "Ue": True,         # Uren indienen (Submit)
-                        "In": True,         # Indienen (Incur)
-                        "ApprovWorkflow": True,
-                        "CreateDeclarations": True
-                    }
-                }
-            }
-        }
-        # payload = {
-        #     "PtRealization": {  # <--- Changed this to match the endpoint name
-        #         "Element": {
-        #             "Fields": {
-        #                 "CreateDeclarations": True,
-        #                 "ApprovWorkflow": True,
-        #                 "GetPcIdAndPrId": True,
-        #                 "DaTi": test_date,  # <--- Now using the test_date variable
-        #                 "VaIt": "1",
-        #                 "ItCd": "01",
-        #                 "Qu": "8",
-        #                 "EmId": "1000994",
-        #                 "Ch": True,
-        #                 "Ap": True,
-        #                 "Pr": True,
-        #                 "PcId": "105",
-        #                 "Status": 1,
-        #                 "Submit": True,     # Extra push for the padlock
-        #                 "Approve": True
-        #                }
-        #         }
-        #     }
-        # }
-
+        # 1. FIND THE DRAFTS (Ticks)
+        # We query the Dossier items (-104 is usually Time Entries)
+        query_url = f"{BASE_URL}/KnWorkflow?filterfieldids=Type&filtervalues=-104&operatortypes=1"
+        
+        results = []
         try:
-            # Posting to PtRealizationWeek
-            resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
+            search_resp = requests.get(query_url, headers=headers)
+            data = search_resp.json()
+
+            if 'rows' in data:
+                for row in data['rows']:
+                    subject_id = row.get('SbId')
+                    
+                    # 2. TRIGGER THE PADLOCK
+                    # We send a 'PUT' or 'POST' to move the workflow to the next step
+                    # 'AcNm' is the Action Name. Based on your screenshot, it's likely 'Indienen'
+                    workflow_payload = {
+                        "KnWorkflow": {
+                            "Element": {
+                                "Fields": {
+                                    "SbId": subject_id,
+                                    "AcNm": "Indienen", # This is the 'Indienen declaratie' button
+                                    "Cm": "Automated Padlock via Gemmy"
+                                }
+                            }
+                        }
+                    }
+                    
+                    lock_resp = requests.post(f"{BASE_URL}/KnWorkflow", headers=headers, json=workflow_payload)
+                    
+                    status = "🔒 Locked!" if lock_resp.status_code in [200, 201, 204] else "❌ Failed"
+                    results.append(f"Entry {subject_id}: {status}")
             
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            if resp.status_code in [200, 201]:
-                html = f"<html><body><h1 style='color:green;'>🎉 THE BANANA IS YOURS!</h1><pre>{resp.text}</pre></body></html>"
-            else:
-                # The 500 error will be caught here and displayed
-                html = f"<html><body><h1>🍌 Still tricky...</h1><p>Status: {resp.status_code}</p><pre>{resp.text}</pre></body></html>"
-            
+            html = f"<html><body><h1>Padlock Operation</h1><pre>{'<br>'.join(results)}</pre></body></html>"
             self.wfile.write(html.encode('utf-8'))
+
         except Exception as e:
             self.send_response(200)
             self.end_headers()
             self.wfile.write(f"Error: {str(e)}".encode())
+
+
+
+# from http.server import BaseHTTPRequestHandler
+# import base64
+# import requests
+# import json
+
+# # --- CONFIGURATION ---
+# AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
+# BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
+
+# class handler(BaseHTTPRequestHandler):
+#     def do_GET(self):
+#         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
+#         headers = {
+#             'Authorization': f'AfasToken {token}', 
+#             'Content-Type': 'application/json'
+#         }
+
+#         # Targeting Monday, March 16th
+#         test_date = "2026-03-19" 
+#         payload = {
+#             "PtRealization": {
+#                 "Element": {
+#                     "Fields": {
+#                         "EmId": "1000994",
+#                         "PcId": "105", 
+#                         "ItCd": "01",
+#                         "Qu": "8.0",
+#                         "Da": test_date, # Try 'Da' instead of 'DaTi' for this endpoint
+#                         "VaIt": 1,
+                        
+#                         # THE PADLOCK COMBO:
+#                         "St": 1,            # 1 = Finalized / Fixed
+#                         "Ue": True,         # Uren indienen (Submit)
+#                         "In": True,         # Indienen (Incur)
+#                         "ApprovWorkflow": True,
+#                         "CreateDeclarations": True
+#                     }
+#                 }
+#             }
+#         }
+#         # payload = {
+#         #     "PtRealization": {  # <--- Changed this to match the endpoint name
+#         #         "Element": {
+#         #             "Fields": {
+#         #                 "CreateDeclarations": True,
+#         #                 "ApprovWorkflow": True,
+#         #                 "GetPcIdAndPrId": True,
+#         #                 "DaTi": test_date,  # <--- Now using the test_date variable
+#         #                 "VaIt": "1",
+#         #                 "ItCd": "01",
+#         #                 "Qu": "8",
+#         #                 "EmId": "1000994",
+#         #                 "Ch": True,
+#         #                 "Ap": True,
+#         #                 "Pr": True,
+#         #                 "PcId": "105",
+#         #                 "Status": 1,
+#         #                 "Submit": True,     # Extra push for the padlock
+#         #                 "Approve": True
+#         #                }
+#         #         }
+#         #     }
+#         # }
+
+#         try:
+#             # Posting to PtRealizationWeek
+#             resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
+            
+#             self.send_response(200)
+#             self.send_header('Content-type', 'text/html; charset=utf-8')
+#             self.end_headers()
+            
+#             if resp.status_code in [200, 201]:
+#                 html = f"<html><body><h1 style='color:green;'>🎉 THE BANANA IS YOURS!</h1><pre>{resp.text}</pre></body></html>"
+#             else:
+#                 # The 500 error will be caught here and displayed
+#                 html = f"<html><body><h1>🍌 Still tricky...</h1><p>Status: {resp.status_code}</p><pre>{resp.text}</pre></body></html>"
+            
+#             self.wfile.write(html.encode('utf-8'))
+#         except Exception as e:
+#             self.send_response(200)
+#             self.end_headers()
+#             self.wfile.write(f"Error: {str(e)}".encode())
 
 
 # from http.server import BaseHTTPRequestHandler
