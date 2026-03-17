@@ -23,7 +23,7 @@ class handler(BaseHTTPRequestHandler):
                 "Element": {
                     "Fields": {
                         "CreateDeclarations": True,
-                        "ApprovWorkflow": true,
+                        "ApprovWorkflow": True,
                         "GetPcIdAndPrId": True,
                         "DaTi": test_date,  # <--- Now using the test_date variable
                         "VaIt": "1",
