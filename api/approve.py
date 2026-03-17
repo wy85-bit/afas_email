@@ -15,28 +15,24 @@ class handler(BaseHTTPRequestHandler):
         # try:
             # 1. PREPARE - Testing with a late 2025 date
 # --- UPDATE TO MATCH YOUR OPEN WEEK 8 ---
-        try:
-         # try:
-            # Matching the successful manual line in your screenshot
-            # project = "VV" 
-            # item = "VZ"
-            # unit_type = "Z" # Added this to match your manual screen!
+    	try:
             test_date = "2026-02-16" 
             final_iso_date = f"{test_date}T00:00:00"
 
-           payload = {
+            # Perfect indentation is key here!
+            payload = {
                 "PtRealizationWeek": {
-                "Element": {
-                "Fields": {
-                "EmId": "1000994",      
-                "PcOc": 105,
-                "ItCd": "01",   # Fixed: Changed 01 to 1
-                "Qu": 8.0,
-                "Da": final_iso_date 
+                    "Element": {
+                        "Fields": {
+                            "EmId": "1000994",      
+                            "PcOc": 105,
+                            "ItCd": "01",  # Wrapped in quotes to be safe!
+                            "Qu": 8.0,
+                            "Da": final_iso_date 
+                        }
+                    }
+                }
             }
-        }
-    }
-}
 # ----------------------------------------
             
             # 3. POST
