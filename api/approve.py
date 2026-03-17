@@ -24,19 +24,19 @@ class handler(BaseHTTPRequestHandler):
             test_date = "2026-02-16" 
             final_iso_date = f"{test_date}T00:00:00"
 
-            payload = {
+           payload = {
                 "PtRealizationWeek": {
-                    "Element": {
-                        "Fields": {
-                            "EmId": "1000994",      
-                            "PcOc": 105,
-                            "ItCd": 01,
-                            "Qu": 8.0,
-                            "Da": final_iso_date 
-                        }
-                    }
-                }
+                "Element": {
+                "Fields": {
+                "EmId": "1000994",      
+                "PcOc": 105,
+                "ItCd": 1,   # Fixed: Changed 01 to 1
+                "Qu": 8.0,
+                "Da": final_iso_date 
             }
+        }
+    }
+}
 # ----------------------------------------
             
             # 3. POST
