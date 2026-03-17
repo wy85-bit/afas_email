@@ -12,8 +12,7 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. TEST TODAY'S DATE
-            test_date = "2026-03-17" 
+            test_date = "2026-03-11" # Last Wednesday
             final_iso_date = f"{test_date}T00:00:00"
 
             payload = {
