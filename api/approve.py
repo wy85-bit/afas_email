@@ -16,13 +16,14 @@ class handler(BaseHTTPRequestHandler):
         }
 
         # Targeting Monday, March 16th
-        test_date = "2026-03-18" 
+        test_date = "2026-03-17" 
         
         payload = {
             "PtRealization": {  # <--- Changed this to match the endpoint name
                 "Element": {
                     "Fields": {
                         "CreateDeclarations": True,
+                        "ApprovWorkflow": true,
                         "GetPcIdAndPrId": True,
                         "DaTi": test_date,  # <--- Now using the test_date variable
                         "VaIt": "1",
