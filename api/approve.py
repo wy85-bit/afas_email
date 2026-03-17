@@ -12,12 +12,8 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            # 1. DISCOVERY - This will show up in your Vercel Logs tab!
-            get_url = f"{BASE_URL}/PtPeriod?take=3"
-            get_resp = requests.get(get_url, headers=headers)
-            print(f"DEBUG - Calendar Data: {get_resp.text}") # Look for this line in Vercel Logs!
-
-            test_date = "2025-01-06" 
+            # Trying a date that matches your manual 'Week 8' success
+            test_date = "2026-02-16" 
             final_iso_date = f"{test_date}T00:00:00"
 
             payload = {
@@ -40,15 +36,14 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            # This is the page you SHOULD see if it doesn't crash
-            html = f"<html><body><h1>Status: {post_resp.status_code}</h1><pre>{post_resp.text}</pre><hr><pre>{get_resp.text[:500]}</pre></body></html>"
+            # Simplified result page
+            html = f"<html><body><h1>AFAS Status: {post_resp.status_code}</h1><pre>{post_resp.text}</pre></body></html>"
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
-            print(f"CRITICAL ERROR: {str(e)}") # This also goes to Logs!
-            self.send_response(500)
+            self.send_response(200) # Keep 200 to see the error on screen
             self.end_headers()
-            self.wfile.write(f"Script Error: {str(e)}".encode()) 
+            self.wfile.write(f"Script Error: {str(e)}".encode())
 
 
 # from http.server import BaseHTTPRequestHandler
