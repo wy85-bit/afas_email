@@ -18,9 +18,9 @@ class handler(BaseHTTPRequestHandler):
         try:
          # try:
             # Matching the successful manual line in your screenshot
-            project = "VV" 
-            item = "VZ"
-            unit_type = "Z" # Added this to match your manual screen!
+            # project = "VV" 
+            # item = "VZ"
+            # unit_type = "Z" # Added this to match your manual screen!
             test_date = "2026-02-16" 
             final_iso_date = f"{test_date}T00:00:00"
 
@@ -29,9 +29,8 @@ class handler(BaseHTTPRequestHandler):
                     "Element": {
                         "Fields": {
                             "EmId": "1000994",      
-                            "PrId": project,        
-                            "ItId": item,
-                            "UnId": unit_type, # <--- Try adding this!
+                            "PcOc": 105,
+                            "ItCd": 01,
                             "Qu": 8.0,
                             "Da": final_iso_date 
                         }
