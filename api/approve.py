@@ -11,46 +11,43 @@ class handler(BaseHTTPRequestHandler):
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
-        try:
-            # 1. First, ask the 'winnie' connector for the most recent valid date
-            get_resp = requests.get(f"{BASE_URL}/{GET_CONNECTOR}?take=1&sortfield=Datum&sortorder=desc", headers=headers)
-            
-            if get_resp.status_code != 200:
-                raise Exception(f"Could not find valid dates: {get_resp.text}")
-
-            # Extract the date from your existing records
-            valid_date_raw = get_resp.json()['rows'][0]['Datum']
-            # Convert "2025-01-16T00:00:00Z" to "2025-01-16T00:00:00"
-            target_date = valid_date_raw.replace('Z', '') 
-
-            # 2. Now, post a tiny 0.1 hour test to that EXACT known-good date
-            payload = {
-                "PtRealizationWeek": {
-                    "Element": {
-                        "Fields": {
-                            "EmId": "1000994", "PcOc": 105, "ItCd": "1", "Qu": 0.1, "Da": target_date
-                        }
+        # Trying the Monday of the current week based on your last success
+        test_date = "2026-03-16" 
+        
+        payload = {
+            "PtRealizationWeek": {
+                "Element": {
+                    "Fields": {
+                        "EmId": "1000994",
+                        "PcOc": 105,
+                        "ItCd": "1",
+                        "Qu": 1.0,
+                        # We are removing the 'T00:00:00' to see if a simple date string 
+                        # allows the API to auto-assign the correct period.
+                        "Da": test_date 
                     }
                 }
             }
-            
-            post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
+        }
+
+        try:
+            resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
             
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            if post_resp.status_code in [200, 201]:
-                html = f"<html><body><h1 style='color:green;'>🍌 FULL BANANA!</h1><p>Posted to confirmed date: {target_date}</p></body></html>"
+            if resp.status_code in [200, 201]:
+                html = f"<html><body><h1 style='color:green;'>🎉 THE BANANA IS YOURS!</h1><pre>{resp.text}</pre></body></html>"
             else:
-                html = f"<html><body><h1 style='color:orange;'>🌓 Getting Closer...</h1><p>Found Date: {target_date}</p><p>AFAS Response: {post_resp.text}</p></body></html>"
+                html = f"<html><body><h1>🍌 Still tricky...</h1><p>Status: {resp.status_code}</p><pre>{resp.text}</pre></body></html>"
             
             self.wfile.write(html.encode('utf-8'))
-
         except Exception as e:
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(f"Detective Error: {str(e)}".encode())
+            self.wfile.write(f"Error: {str(e)}".encode())
+
 
 # from http.server import BaseHTTPRequestHandler
 # import base64, requests, json
