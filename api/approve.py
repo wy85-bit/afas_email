@@ -10,52 +10,66 @@ BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
-        headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
+        headers = {
+            'Authorization': f'AfasToken {token}', 
+            'Content-Type': 'application/json'
+        }
 
         # Your Weekly Copy List
         workdays = ["2026-03-16", "2026-03-17", "2026-03-18", "2026-03-19", "2026-03-20"]
         results = []
 
         for day in workdays:
-           payload = {
-        "PtRealization": { 
-            "Element": {
-                "Fields": {
-                    "EmId": "1000994",
-                    "PcId": "105",
-                    "ItCd": "01",
-                    "Qu": "8",
-                    "Da": day,
-                    "VaIt": "1",
-                    "CreateDeclarations": True,
-                    "GetPcIdAndPrId": True,
-                    
-                    # --- THE FORCED PERIOD FIELDS ---
-                    "Pe": 3,        # Period 3 (March)
-                    "Ye": 2026,     # Year 2026
-                    "St": 1,        # Status: Final/Locked
-                    "Ue": True,     # Submit
-                    "In": True      # Incur
+            payload = {
+                "PtRealization": { 
+                    "Element": {
+                        "Fields": {
+                            "EmId": "1000994",
+                            "PcId": "105",
+                            "ItCd": "01",
+                            "Qu": "8",
+                            "Da": day,
+                            "VaIt": "1",
+                            "CreateDeclarations": True,
+                            "GetPcIdAndPrId": True,
+                            
+                            # --- THE FORCED PERIOD FIELDS ---
+                            "Pe": 3,        # Period 3 (March)
+                            "Ye": 2026,     # Year 2026
+                            "St": 1,        # Status: Final/Locked
+                            "Ue": True,     # Submit
+                            "In": True      # Incur
                         }
                     }
                 }
             }
+            
             try:
+                # Execution happens inside the loop for each workday
                 resp = requests.post(f"{BASE_URL}/PtRealization", headers=headers, json=payload)
                 if resp.status_code in [200, 201]:
                     results.append(f"✅ {day}: Padlock Success!")
                 else:
-                    # Capture the specific error from AFAS
+                    # Extracting the error message from the response we saw earlier
                     msg = resp.json().get('externalMessage', 'Unknown Error')
                     results.append(f"❌ {day}: {msg}")
             except Exception as e:
                 results.append(f"⚠️ {day}: Error {str(e)}")
 
+        # Response handling
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         
-        html = f"<html><body><h1>Weekly Padlock Operation</h1><pre>" + "<br>".join(results) + "</pre></body></html>"
+        html = f"""
+        <html>
+            <body style="font-family: sans-serif; padding: 20px;">
+                <h1>Weekly Padlock Operation</h1>
+                <hr>
+                <pre style="font-size: 1.2em; line-height: 1.6;">{"<br>".join(results)}</pre>
+            </body>
+        </html>
+        """
         self.wfile.write(html.encode('utf-8'))
 
 
