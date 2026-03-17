@@ -17,26 +17,25 @@ class handler(BaseHTTPRequestHandler):
         results = []
 
         for day in workdays:
-            payload = {
-                "PtRealization": { 
-                    "Element": {
-                        "Fields": {
-                            "EmId": "1000994",
-                            "PcId": "105",
-                            "ItCd": "01",
-                            "Qu": "8",
-                            "Da": day,  # <--- CHANGED FROM DaTi TO Da
-                            "VaIt": "1",
-                            "CreateDeclarations": True,
-                            "GetPcIdAndPrId": True,
-                            "Ch": True, 
-                            "Ap": True, 
-                            "Pr": True,
-                            
-                            # THE PADLOCK SETTINGS
-                            "St": 1,        # 1 = Geaccordeerd (Approved/Locked)
-                            "Ue": True,     # Uren indienen (Submit)
-                            "In": True      # Indienen (Incur)
+           payload = {
+        "PtRealization": { 
+            "Element": {
+                "Fields": {
+                    "EmId": "1000994",
+                    "PcId": "105",
+                    "ItCd": "01",
+                    "Qu": "8",
+                    "Da": day,
+                    "VaIt": "1",
+                    "CreateDeclarations": True,
+                    "GetPcIdAndPrId": True,
+                    
+                    # --- THE FORCED PERIOD FIELDS ---
+                    "Pe": 3,        # Period 3 (March)
+                    "Ye": 2026,     # Year 2026
+                    "St": 1,        # Status: Final/Locked
+                    "Ue": True,     # Submit
+                    "In": True      # Incur
                         }
                     }
                 }
