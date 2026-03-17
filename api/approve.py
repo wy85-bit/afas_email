@@ -48,7 +48,7 @@ class handler(BaseHTTPRequestHandler):
             print(f"CRITICAL ERROR: {str(e)}") # This also goes to Logs!
             self.send_response(500)
             self.end_headers()
-            self.wfile.write(f"Script Error: {str(e)}".encode())
+            self.wfile.write(f"Script Error: {str(e)}".encode()) 
 
 
 # from http.server import BaseHTTPRequestHandler
