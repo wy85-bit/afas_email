@@ -11,49 +11,51 @@ class handler(BaseHTTPRequestHandler):
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
-        try:
-            # test_date = "2025-01-06" # The first Monday of 2025
-            # final_iso_date = f"{test_date}T00:00:00"
+        # We are going to try a variety of 'Monday' dates that often work in test environments
+        dates_to_try = [
+            "2026-03-09", # Last Monday
+            "2026-03-02", # Two Mondays ago
+            "2025-12-29", # Last Monday of 2025
+            "2025-01-06", # First Monday of 2025
+            "2024-01-01", # First Monday of 2024
+            "2026-03-16"  # Yesterday
+        ]
 
-            test_date = "2023-01-02"
-            payload = {
-                "PtRealizationWeek": {
-                    "Element": {
-                        "Fields": {
-                            "EmId": "1000994",      
-                            "PcOc": 105,
-                            "ItCd": "1",
-                            "Qu": 1.0, 
-                            "Da": f"{test_date}T00:00:00" 
+        results = []
+        success_found = False
+
+        try:
+            for d in dates_to_try:
+                payload = {
+                    "PtRealizationWeek": {
+                        "Element": {
+                            "Fields": {
+                                "EmId": "1000994", "PcOc": 105, "ItCd": "1", "Qu": 1.0, "Da": f"{d}T00:00:00"
+                            }
                         }
                     }
                 }
-            }
-            
-            # 2. TRY THE ALTERNATE CONNECTOR (To see if it exists)
-            check_conn = requests.get(f"{BASE_URL}/KnPeriod?take=1", headers=headers)
-            
-            post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
-            
+                resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
+                
+                if resp.status_code in [200, 201]:
+                    results.append(f"✅ SUCCESS on {d}!")
+                    success_found = True
+                    break # Stop looking, we found the banana!
+                else:
+                    results.append(f"❌ {d}: {resp.status_code}")
+
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            html = f"""
-            <html><body>
-                <h1>AFAS Status: {post_resp.status_code}</h1>
-                <p><b>Tried Date:</b> {test_date}</p>
-                <pre>{post_resp.text}</pre>
-                <hr>
-                <p><b>KnPeriod Connector Check:</b> {check_conn.status_code} (200 = Found!)</p>
-            </body></html>
-            """
+            status_text = "WE FOUND IT!" if success_found else "ALL DATES FAILED"
+            html = f"<html><body><h1>{status_text}</h1><pre>" + "\n".join(results) + "</pre></body></html>"
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(f"Error: {str(e)}".encode())
+            self.wfile.write(f"Script Error: {str(e)}".encode())
 
 # from http.server import BaseHTTPRequestHandler
 # import base64, requests, json
