@@ -14,44 +14,55 @@ class handler(BaseHTTPRequestHandler):
                 'Content-Type': 'application/json'
             }
     
-            try:
-                test_date = "2025-03-17" 
-                final_iso_date = f"{test_date}T00:00:00"
-    
-                # This structure must be exactly 4-space indented
-                payload = {
-                    "PtRealizationWeek": {
-                        "Element": {
-                            "Fields": {
-                                "EmId": "1000994",      
-                                "PcOc": 105,
-                                "ItCd": 1,
-                                "Qu": 8.0,
-                                "Da": final_iso_date 
-                            }
+        try:
+            # 1. DISCOVERY - Let's see what periods are open
+            # We fetch the first 5 periods to see the "Year" and "Period" format
+            get_url = f"{BASE_URL}/PtPeriod?take=5"
+            get_resp = requests.get(get_url, headers=headers)
+            
+            # 2. THE DATA 
+            # If we don't know the date, let's use a very safe one 
+            # usually used in AFAS test environments
+            test_date = "2025-01-01" 
+            final_iso_date = f"{test_date}T00:00:00"
+
+            payload = {
+                "PtRealizationWeek": {
+                    "Element": {
+                        "Fields": {
+                            "EmId": "1000994",      
+                            "PcOc": 105,
+                            "ItCd": "01",
+                            "Qu": 8.0,
+                            "Da": final_iso_date 
                         }
                     }
                 }
-                
-                # Sending the request to AFAS
-                post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
-                
-                self.send_response(200)
-                self.send_header('Content-type', 'text/html; charset=utf-8')
-                self.end_headers()
-                
-                if post_resp.status_code in [200, 201]:
-                    html = f"<html><body><h1>✅ SUCCESS!</h1><p>Sent to {final_iso_date}</p></body></html>"
-                else:
-                    html = f"<html><body><h1>❌ FAILED</h1><p>AFAS says: {post_resp.text}</p></body></html>"
-                
-                self.wfile.write(html.encode('utf-8'))
-    
-            except Exception as e:
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(f"Error: {str(e)}".encode())
-
+            }
+            
+            # 3. POST
+            post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.end_headers()
+            
+            # 4. SHOW RESULT WITH DISCOVERY LOGS
+            discovery_info = get_resp.text[:500] # Just a snippet to keep it clean
+            
+            if post_resp.status_code in [200, 201]:
+                html = f"<html><body><h1 style='color:green;'>✅ SUCCESS!</h1><p>Sent to {final_iso_date}</p></body></html>"
+            else:
+                html = f"""
+                <html><body>
+                <h1 style='color:red;'>❌ STILL NO BANANA</h1>
+                <p><b>AFAS Error:</b> {post_resp.text}</p>
+                <hr>
+                <p><b>Discovery Info (Open Periods):</b> {discovery_info}</p>
+                </body></html>
+                """
+            
+            self.wfile.write(html.encode('utf-8'))
 
 
 # from http.server import BaseHTTPRequestHandler
