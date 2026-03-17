@@ -33,9 +33,9 @@ class handler(BaseHTTPRequestHandler):
                         "Ch": True,
                         "Ap": True,
                         "Pr": True,
-                        "PcId": "105", 
-                        "Ue": True,   # <--- 'Uren indienen' (Submit hours)
-                        "In": True    # <--- 'Indienen' (Submit)                    }
+                        "PcId": "105",
+                        "Status": 1
+                       }
                 }
             }
         }
