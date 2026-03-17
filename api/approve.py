@@ -11,33 +11,35 @@ class handler(BaseHTTPRequestHandler):
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
-        # We are going to try a variety of 'Monday' dates that often work in test environments
-        dates_to_try = [
-            "2026-03-09", # Last Monday
-            "2026-03-02", # Two Mondays ago
-            "2025-12-29", # Last Monday of 2025
-            "2025-01-06", # First Monday of 2025
-            "2024-01-01", # First Monday of 2024
-            "2026-03-16"  # Yesterday
-        ]
-
-        results = []
-        success_found = False
-
         try:
-            # Let's try to fetch your employee record instead of posting hours
-            # This uses the 'winnie' connector you mentioned in your config
-            get_url = f"{BASE_URL}/{GET_CONNECTOR}?take=1"
-            resp = requests.get(get_url, headers=headers)
+            # Using the exact date we just discovered in your verified connection!
+            test_date = "2025-01-16" 
+            final_iso_date = f"{test_date}T00:00:00"
+
+            payload = {
+                "PtRealizationWeek": {
+                    "Element": {
+                        "Fields": {
+                            "EmId": "1000994",      
+                            "PcOc": 105,
+                            "ItCd": "1",
+                            "Qu": 1.0, 
+                            "Da": final_iso_date 
+                        }
+                    }
+                }
+            }
+            
+            post_resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
             
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             
-            if resp.status_code == 200:
-                html = f"<html><body><h1 style='color:green;'>✅ CONNECTION VERIFIED!</h1><p>AFAS says: {resp.text[:500]}</p></body></html>"
+            if post_resp.status_code in [200, 201]:
+                html = f"<html><body><h1 style='color:green;'>🎉 FULL BANANA REACHED!</h1><p>Status: {post_resp.status_code}</p><pre>{post_resp.text}</pre></body></html>"
             else:
-                html = f"<html><body><h1 style='color:red;'>❌ CONNECTION FAILED</h1><p>Status: {resp.status_code}</p><pre>{resp.text}</pre></body></html>"
+                html = f"<html><body><h1 style='color:orange;'>🍌 Partial Banana: Connection is good, but date is tricky</h1><p>Status: {post_resp.status_code}</p><pre>{post_resp.text}</pre></body></html>"
             
             self.wfile.write(html.encode('utf-8'))
 
