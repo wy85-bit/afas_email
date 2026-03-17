@@ -16,7 +16,7 @@ class handler(BaseHTTPRequestHandler):
         }
 
         # Targeting Monday, March 16th
-        test_date = "2026-03-17" 
+        test_date = "2026-03-16" 
         
         payload = {
             "PtRealization": {  # <--- Changed this to match the endpoint name
