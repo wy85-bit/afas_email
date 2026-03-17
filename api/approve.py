@@ -12,9 +12,10 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
 
         try:
-            test_date = "2025-01-06" # The first Monday of 2025
-            final_iso_date = f"{test_date}T00:00:00"
+            # test_date = "2025-01-06" # The first Monday of 2025
+            # final_iso_date = f"{test_date}T00:00:00"
 
+            test_date = "2026-03-16"
             payload = {
                 "PtRealizationWeek": {
                     "Element": {
@@ -22,9 +23,8 @@ class handler(BaseHTTPRequestHandler):
                             "EmId": "1000994",      
                             "PcOc": 105,
                             "ItCd": "1",
-                            "UnTy": "Z",  # Adding Unit Type 'Z' as seen in your manual successful line
-                            "Qu": 1.0,    
-                            "Da": "2025-01-06T00:00:00" 
+                            "Qu": 1.0, 
+                            "Da": f"{test_date}T00:00:00" 
                         }
                     }
                 }
