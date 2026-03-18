@@ -31,21 +31,24 @@ class handler(BaseHTTPRequestHandler):
                     today_str = datetime.now().strftime('%Y-%m-%dT00:00:00Z')
                     
                     # 2. Re-formatted Payload
+                    # --- REFINED PAYLOAD SECTION FOR api/copy_hours.py ---
+                    
+                    # We take the ProjectId from the source row we just GET-ted
+                    project_id = source.get("ProjectId")
+                    quantity = source.get("QuantityUnit")
+                    
                     payload = {
                         "PtRealization": {
                             "Element": {
-                                "Fields": {
-                                    "EmId": "1000994",
-                                    "PrId": source.get("ProjectId"),
-                                    "Da": today_str,
-                                    "Qu": source.get("QuantityUnit"),
-                                    "Uu": "UUR",
-                                    "De": f"Auto-copy from {source.get('DateTime')}"
-                                }
+                                "EmId": "1000994",      # Employee ID
+                                "PrId": str(project_id), # Project ID from source
+                                "Da": today_str,         # Date
+                                "Qu": float(quantity),   # Quantity (8.0)
+                                "Uu": "UUR",             # Unit (UUR was in your raw sample!)
+                                "De": f"Auto-copy from {source.get('DateTime')}"
                             }
                         }
                     }
-
                     # 3. Trying the .json suffix to clear that 404
                     post_url = f"{BASE_URL}/updateconnectors/PtRealization"
                     post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
