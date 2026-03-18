@@ -53,10 +53,17 @@ class handler(BaseHTTPRequestHandler):
                     post_url = f"{BASE_URL}/{UPDATE_CONNECTOR}"
                     post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
                     
+                    # if post_resp.status_code in [200, 201]:
+                    #     res_text = f"Successfully copied {source.get('QuantityUnit')} hours to {new_date}!"
+                    # else:
+                    #     res_text = f"Failed to copy. AFAS says: {post_resp.text}"
+                    
+                    # Updated error catching to see the actual AFAS message
                     if post_resp.status_code in [200, 201]:
-                        res_text = f"Successfully copied {source.get('QuantityUnit')} hours to {new_date}!"
+                        res_text = f"Successfully copied {source.get('QuantityUnit')} hours!"
                     else:
-                        res_text = f"Failed to copy. AFAS says: {post_resp.text}"
+                        # This will show us the EXACT field that is missing or wrong
+                        res_text = f"Failed. AFAS Error {post_resp.status_code}: {post_resp.text}"
             else:
                 res_text = f"Error fetching source data: {get_resp.status_code}"
 
