@@ -33,32 +33,40 @@ class handler(BaseHTTPRequestHandler):
             source = rows[0]
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00Z')
             
-            # 2. THE FIX: Standard AFAS Update Structure
-            # We use 'EmId', 'PrId', and the mandatory 'Uu' (Unit ID)
+           # 2. THE REFINED PAYLOAD: PtRealization (Nacalculatie)
+            # 'EmId' = Employee, 'PrId' = Project, 'UnId' = Unit (Standard is UUR)
             payload = {
                 "PtRealization": {
                     "Element": {
                         "EmId": "1000994",
                         "PrId": str(source.get("ProjectId")),
+                        "WpId": str(source.get("WorkAddressId", "")), # Optional: Work Address
                         "Da": today_str,
                         "Qu": float(source.get("QuantityUnit")),
-                        "Uu": "UUR", # 'UUR' confirmed from your earlier Raw Sample!
-                        "De": f"Auto-copy from {source.get('DateTime')}"
+                        "UnId": "UUR", # 'UnId' is the standard field for Unit ID in PtRealization
+                        "De": f"Copy: {source.get('Description', 'Hours')}",
+                        "Unit": 1 # Often required to tell AFAS this is a '1' (Insert) action
                     }
                 }
             }
 
-            # 3. URL Case Sensitivity Check
-            # Using CamelCase for the endpoint often resolves 404s
+            # 3. THE CORRECT ENDPOINT
+            # Ensure no underscores and correct casing
             post_url = f"{BASE_URL}/updateconnectors/PtRealization"
-            post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
+            
+            post_resp = requests.post(
+                post_url, 
+                headers=headers, 
+                data=json.dumps(payload)
+            )
             
             if post_resp.status_code in [200, 201]:
-                self._send_html(f"✅ Success! Copied {source.get('QuantityUnit')} hours to {today_str}.")
+                # AFAS returns the record ID in the JSON response on success
+                new_id = post_resp.json().get('id', 'unknown')
+                self._send_html(f"✅ Success! Created record {new_id} for {today_str}.")
             else:
-                # This will show the exact AFAS validation error if it's not a 404
+                # This will give us the specific validation error from AFAS
                 self._send_html(f"❌ AFAS Error {post_resp.status_code}: {post_resp.text}")
-
         except Exception as e:
             self._send_html(f"Script Error: {str(e)}")
 
