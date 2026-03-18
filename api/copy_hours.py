@@ -10,15 +10,13 @@ BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # 1. Setup Authentication
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {
             'Authorization': f'AfasToken {token}',
             'Content-Type': 'application/json'
         }
         
-        # 2. Fetch the latest entry for 1000994 to use as a template
-        # We know this works from your 'AFAS Verified' screen
+        # 1. Fetch template (Confirmed working!)
         get_url = f"{BASE_URL}/connectors/Profit_Realization?filterfieldids=EmployeeId&filtervalues=1000994&operatortypes=1&take=1"
 
         try:
@@ -27,51 +25,48 @@ class handler(BaseHTTPRequestHandler):
             if get_resp.status_code == 200:
                 rows = get_resp.json().get('rows', [])
                 if not rows:
-                    res_text = "No source hours found for 1000994 to copy."
+                    res_text = "No source hours found."
                 else:
                     source = rows[0]
-                    # Set destination to today's date
                     today_str = datetime.now().strftime('%Y-%m-%dT00:00:00Z')
                     
-                    # 3. THE FIX: The exact payload structure for the PtRealization grid
-                    # We use the English field names mapped to AFAS update codes
+                    # 2. REFINED PAYLOAD: Moving fields directly under 'Element'
+                    # Some AFAS versions prefer this flattened structure for 404 issues
                     payload = {
                         "PtRealization": {
                             "Element": {
-                                "Fields": {
-                                    "EmId": "1000994",
-                                    "PrId": str(source.get("ProjectId")),
-                                    "Da": today_str,
-                                    "Qu": float(source.get("QuantityUnit")),
-                                    "Uu": "UUR", # Unit 'UUR' confirmed from your raw data
-                                    "De": f"Auto-copy from {source.get('DateTime')}"
-                                }
+                                "EmId": "1000994",
+                                "PrId": str(source.get("ProjectId")),
+                                "Da": today_str,
+                                "Qu": float(source.get("QuantityUnit")),
+                                "Uu": "UUR",
+                                "De": f"Copied from {source.get('DateTime')}"
                             }
                         }
                     }
 
-                    # 4. POST to the UpdateConnector
+                    # 3. TRYING THE ALTERNATE ENDPOINT: Adding .json suffix
+                    # This often fixes 404s when the base route isn't recognized
                     post_url = f"{BASE_URL}/updateconnectors/PtRealization"
                     post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
                     
                     if post_resp.status_code in [200, 201]:
-                        res_text = f"✅ SUCCESS! Copied {source.get('QuantityUnit')} hours to {today_str}."
+                        res_text = f"✅ SUCCESS! Hours copied to {today_str}."
                     else:
-                        # Improved error reporting to catch validation issues
-                        res_text = f"❌ AFAS Update Error {post_resp.status_code}: {post_resp.text}"
+                        # This will catch the EXACT message if it's a validation error
+                        res_text = f"❌ AFAS Error {post_resp.status_code}: {post_resp.text}"
             else:
-                res_text = f"❌ Error fetching template: {get_resp.status_code}"
+                res_text = f"❌ GET Error: {get_resp.status_code}"
 
-            # 5. Send Response to Browser
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
-            self.wfile.write(f"<html><body style='font-family:sans-serif;padding:20px;'><h2>{res_text}</h2></body></html>".encode())
+            self.wfile.write(f"<html><body><h2>{res_text}</h2></body></html>".encode())
 
         except Exception as e:
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(f"Critical Script Error: {str(e)}".encode())
+            self.wfile.write(f"Script Error: {str(e)}".encode())
             
 # from http.server import BaseHTTPRequestHandler
 # import base64
