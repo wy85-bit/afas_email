@@ -14,7 +14,7 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token}'}
         
         # Pulling a larger set to ensure we find your recent entry
-        url = f"{BASE_URL}/{GET_CONNECTOR}?take=100"
+        url = f"{BASE_URL}/{GET_CONNECTOR}?filterfieldids=EmployeeId&filtervalues=1000994&operatortypes=1"
 
         try:
             resp = requests.get(url, headers=headers)
