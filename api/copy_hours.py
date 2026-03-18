@@ -16,71 +16,58 @@ class handler(BaseHTTPRequestHandler):
             'Content-Type': 'application/json'
         }
         
-        # 1. Fetch template (We know this works from your verification grid)
+        # 1. Get the latest record for 1000994 (Known working!)
         get_url = f"{BASE_URL}/connectors/Profit_Realization?filterfieldids=EmployeeId&filtervalues=1000994&operatortypes=1&take=1"
 
         try:
             get_resp = requests.get(get_url, headers=headers)
-            res_html = "<html><body style='font-family:sans-serif; padding:20px;'>"
+            if get_resp.status_code != 200:
+                self._send_html(f"❌ GET Error: {get_resp.status_code}")
+                return
 
-            if get_resp.status_code == 200:
-                rows = get_resp.json().get('rows', [])
-                if not rows:
-                    res_html += "<h2>⚠️ No source hours found to copy.</h2>"
-                else:
-                    source = rows[0]
-                    today_str = datetime.now().strftime('%Y-%m-%dT00:00:00Z')
-                    
-                    # 2. Refined Payload
-                    payload = {
-                        "PtRealization": {
-                            "Element": {
-                                "Fields": {
-                                    "EmId": "1000994",
-                                    "PrId": str(source.get("ProjectId")),
-                                    "Da": today_str,
-                                    "Qu": float(source.get("QuantityUnit")),
-                                    "Uu": "UUR",
-                                    "De": f"Auto-copy from {source.get('DateTime')}"
-                                }
-                            }
+            rows = get_resp.json().get('rows', [])
+            if not rows:
+                self._send_html("⚠️ No source hours found to copy.")
+                return
+
+            source = rows[0]
+            today_str = datetime.now().strftime('%Y-%m-%dT00:00:00Z')
+            
+            # 2. We will try the 'Standard' payload first
+            # PtRealization often requires the data wrapped in 'Fields'
+            payload = {
+                "PtRealization": {
+                    "Element": {
+                        "Fields": {
+                            "EmId": "1000994",
+                            "PrId": str(source.get("ProjectId")),
+                            "Da": today_str,
+                            "Qu": float(source.get("QuantityUnit")),
+                            "Uu": "UUR",
+                            "De": f"Copied from {source.get('DateTime')}"
                         }
                     }
+                }
+            }
 
-                    # 3. Attempt the Update
-                    post_url = f"{BASE_URL}/updateconnectors/PtRealization"
-                    post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
-                    
-                    if post_resp.status_code in [200, 201]:
-                        res_html += f"<h2 style='color:green;'>✅ SUCCESS! Hours copied to {today_str}.</h2>"
-                    else:
-                        # 4. IF 404: Try to find the correct connector name automatically
-                        res_html += f"<h2 style='color:red;'>❌ AFAS Update Error {post_resp.status_code}</h2>"
-                        res_html += "<p>The 'PtRealization' endpoint was not found. Searching for available connectors...</p>"
-                        
-                        meta_url = f"{BASE_URL}/updateconnectors"
-                        meta_resp = requests.get(meta_url, headers=headers)
-                        if meta_resp.status_code == 200:
-                            connectors = meta_resp.json()
-                            res_html += "<h3>Available UpdateConnectors:</h3><ul>"
-                            for c in connectors:
-                                res_html += f"<li>{c.get('id')}</li>"
-                            res_html += "</ul>"
-                        else:
-                            res_html += f"<p>Could not retrieve connector list: {meta_resp.status_code}</p>"
+            post_url = f"{BASE_URL}/updateconnectors/PtRealization"
+            post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
+            
+            if post_resp.status_code in [200, 201]:
+                self._send_html(f"✅ SUCCESS! Hours copied to {today_str}.")
             else:
-                res_html += f"<h2>❌ GET Error: {get_resp.status_code}</h2>"
-
-            res_html += "</body></html>"
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(res_html.encode('utf-8'))
+                # If it fails, we show the status and the RAW response to find clues
+                self._send_html(f"❌ AFAS Error {post_resp.status_code}: {post_resp.text}")
 
         except Exception as e:
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(f"Critical Script Error: {str(e)}".encode())
+            self._send_html(f"Critical Script Error: {str(e)}")
+
+    def _send_html(self, message):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.end_headers()
+        content = f"<html><body style='font-family:sans-serif;padding:20px;'><h2>{message}</h2></body></html>"
+        self.wfile.write(content.encode('utf-8'))
             
 # from http.server import BaseHTTPRequestHandler
 # import base64
