@@ -35,16 +35,18 @@ class handler(BaseHTTPRequestHandler):
             
            # 2. THE REFINED PAYLOAD: PtRealization (Nacalculatie)
            # 2. THE REFINED PAYLOAD: PtRealization (Nacalculatie)
+            # 2. THE REFINED PAYLOAD: PtRealization (Nacalculatie)
+            # Note: AFAS uses EnId for Employee (Medewerker) and ItId for Item (Itemcode)
             payload = {
                 "PtRealization": {
                     "Element": {
-                        "EmId": "1000994",              # Employee ID
-                        "PrId": str(source.get("PrId") or source.get("ProjectId")), # Project ID
-                        "Da": today_str,               # Date in ISO format
-                        "Qu": float(source.get("Qu") or source.get("QuantityUnit")), # Quantity
-                        "UnId": "UUR",                 # Unit ID (Standard for hours)
-                        "De": f"Copy: {source.get('De', 'Hours')}", # Description
-                        "Bo": True                     # 'Bo' (Billed) - often mandatory to set as True/False
+                        "EnId": "1000994",                                 # Medewerker ID (Standard is EnId)
+                        "PrId": str(source.get("Projectnummer") or source.get("PrId")), # Projectnummer
+                        "Da": datetime.now().strftime('%Y-%m-%dT00:00:00'),# Date (Remove the 'Z' if AFAS throws a format error)
+                        "Qu": float(source.get("Aantal_eenheden") or source.get("Qu") or 0), # Aantal eenheden
+                        "UnId": str(source.get("Eenheid") or "UUR"),       # Eenheid
+                        "ItId": str(source.get("Itemcode") or ""),         # Itemcode (Mandatory in most AFAS configs)
+                        "De": f"Copy: {source.get('Omschrijving', 'Hours')}" # Omschrijving
                     }
                 }
             }
