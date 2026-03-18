@@ -4,66 +4,69 @@ import requests
 import json
 from datetime import datetime
 
+# --- CONFIGURATION ---
 AFAS_TOKEN_XML = "<token><version>1</version><data>1B1A038E744849258476AB929131EE04E5A54C3706484C6394A850E686E56116</data></token>"
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
-        headers = {'Authorization': f'AfasToken {token}', 'Content-Type': 'application/json'}
+        headers = {
+            'Authorization': f'AfasToken {token}',
+            'Content-Type': 'application/json'
+        }
         
-        # 1. Get the template record
+        # 1. Fetch template record (We know this works!)
         get_url = f"{BASE_URL}/connectors/Profit_Realization?filterfieldids=EmployeeId&filtervalues=1000994&operatortypes=1&take=1"
 
         try:
             get_resp = requests.get(get_url, headers=headers)
             if get_resp.status_code != 200:
-                self._send(f"❌ GET Failed: {get_resp.status_code}")
+                self._send_html(f"❌ GET Error: {get_resp.status_code}")
                 return
 
             rows = get_resp.json().get('rows', [])
             if not rows:
-                self._send("⚠️ No hours found for 1000994.")
+                self._send_html("⚠️ No source hours found to copy.")
                 return
 
             source = rows[0]
-            # Use today's date in AFAS format
-            today = datetime.now().strftime('%Y-%m-%dT00:00:00Z')
-
-            # 2. The most compatible AFAS payload structure
+            today_str = datetime.now().strftime('%Y-%m-%dT00:00:00Z')
+            
+            # 2. THE FIX: Standard AFAS Update Structure
+            # We use 'EmId', 'PrId', and the mandatory 'Uu' (Unit ID)
             payload = {
                 "PtRealization": {
                     "Element": {
-                        "Fields": {
-                            "EmId": "1000994",
-                            "PrId": str(source.get("ProjectId")),
-                            "Da": today,
-                            "Qu": float(source.get("QuantityUnit")),
-                            "Uu": "UUR",
-                            "De": f"Copied from {source.get('DateTime')}"
-                        }
+                        "EmId": "1000994",
+                        "PrId": str(source.get("ProjectId")),
+                        "Da": today_str,
+                        "Qu": float(source.get("QuantityUnit")),
+                        "Uu": "UUR", # 'UUR' confirmed from your earlier Raw Sample!
+                        "De": f"Auto-copy from {source.get('DateTime')}"
                     }
                 }
             }
 
-            # 3. Try the POST - testing a lowercase path which often fixes 404s
-            post_url = f"{BASE_URL}/updateconnectors/ptrealization"
+            # 3. URL Case Sensitivity Check
+            # Using CamelCase for the endpoint often resolves 404s
+            post_url = f"{BASE_URL}/updateconnectors/PtRealization"
             post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
             
             if post_resp.status_code in [200, 201]:
-                self._send(f"✅ SUCCESS! Hours copied to {today}.")
+                self._send_html(f"✅ Success! Copied {source.get('QuantityUnit')} hours to {today_str}.")
             else:
-                # If this fails, it prints the AFAS reason (e.g., 'Project inactive')
-                self._send(f"❌ AFAS rejected the copy ({post_resp.status_code}): {post_resp.text}")
+                # This will show the exact AFAS validation error if it's not a 404
+                self._send_html(f"❌ AFAS Error {post_resp.status_code}: {post_resp.text}")
 
         except Exception as e:
-            self._send(f"Critical Error: {str(e)}")
+            self._send_html(f"Script Error: {str(e)}")
 
-    def _send(self, msg):
+    def _send_html(self, message):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write(f"<html><body><h2>{msg}</h2></body></html>".encode())
+        self.wfile.write(f"<html><body><h2>{message}</h2></body></html>".encode())
             
 # from http.server import BaseHTTPRequestHandler
 # import base64
