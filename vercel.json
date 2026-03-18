@@ -10,3 +10,9 @@
     { "src": "/api/send_emails", "dest": "api/send_emails.py" }
   ]
 }
+{
+  "rewrites": [
+    { "source": "/api/index", "destination": "/api/index.py" },
+    { "source": "/api/verify", "destination": "/api/verify.py" }
+  ]
+}
