@@ -16,57 +16,71 @@ class handler(BaseHTTPRequestHandler):
             'Content-Type': 'application/json'
         }
         
-        # 1. Fetch template (Confirmed working!)
+        # 1. Fetch template (We know this works from your verification grid)
         get_url = f"{BASE_URL}/connectors/Profit_Realization?filterfieldids=EmployeeId&filtervalues=1000994&operatortypes=1&take=1"
 
         try:
             get_resp = requests.get(get_url, headers=headers)
-            
+            res_html = "<html><body style='font-family:sans-serif; padding:20px;'>"
+
             if get_resp.status_code == 200:
                 rows = get_resp.json().get('rows', [])
                 if not rows:
-                    res_text = "No source hours found."
+                    res_html += "<h2>⚠️ No source hours found to copy.</h2>"
                 else:
                     source = rows[0]
                     today_str = datetime.now().strftime('%Y-%m-%dT00:00:00Z')
                     
-                    # 2. REFINED PAYLOAD: Moving fields directly under 'Element'
-                    # Some AFAS versions prefer this flattened structure for 404 issues
+                    # 2. Refined Payload
                     payload = {
                         "PtRealization": {
                             "Element": {
-                                "EmId": "1000994",
-                                "PrId": str(source.get("ProjectId")),
-                                "Da": today_str,
-                                "Qu": float(source.get("QuantityUnit")),
-                                "Uu": "UUR",
-                                "De": f"Copied from {source.get('DateTime')}"
+                                "Fields": {
+                                    "EmId": "1000994",
+                                    "PrId": str(source.get("ProjectId")),
+                                    "Da": today_str,
+                                    "Qu": float(source.get("QuantityUnit")),
+                                    "Uu": "UUR",
+                                    "De": f"Auto-copy from {source.get('DateTime')}"
+                                }
                             }
                         }
                     }
 
-                    # 3. TRYING THE ALTERNATE ENDPOINT: Adding .json suffix
-                    # This often fixes 404s when the base route isn't recognized
+                    # 3. Attempt the Update
                     post_url = f"{BASE_URL}/updateconnectors/PtRealization"
                     post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
                     
                     if post_resp.status_code in [200, 201]:
-                        res_text = f"✅ SUCCESS! Hours copied to {today_str}."
+                        res_html += f"<h2 style='color:green;'>✅ SUCCESS! Hours copied to {today_str}.</h2>"
                     else:
-                        # This will catch the EXACT message if it's a validation error
-                        res_text = f"❌ AFAS Error {post_resp.status_code}: {post_resp.text}"
+                        # 4. IF 404: Try to find the correct connector name automatically
+                        res_html += f"<h2 style='color:red;'>❌ AFAS Update Error {post_resp.status_code}</h2>"
+                        res_html += "<p>The 'PtRealization' endpoint was not found. Searching for available connectors...</p>"
+                        
+                        meta_url = f"{BASE_URL}/updateconnectors"
+                        meta_resp = requests.get(meta_url, headers=headers)
+                        if meta_resp.status_code == 200:
+                            connectors = meta_resp.json()
+                            res_html += "<h3>Available UpdateConnectors:</h3><ul>"
+                            for c in connectors:
+                                res_html += f"<li>{c.get('id')}</li>"
+                            res_html += "</ul>"
+                        else:
+                            res_html += f"<p>Could not retrieve connector list: {meta_resp.status_code}</p>"
             else:
-                res_text = f"❌ GET Error: {get_resp.status_code}"
+                res_html += f"<h2>❌ GET Error: {get_resp.status_code}</h2>"
 
+            res_html += "</body></html>"
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
-            self.wfile.write(f"<html><body><h2>{res_text}</h2></body></html>".encode())
+            self.wfile.write(res_html.encode('utf-8'))
 
         except Exception as e:
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(f"Script Error: {str(e)}".encode())
+            self.wfile.write(f"Critical Script Error: {str(e)}".encode())
             
 # from http.server import BaseHTTPRequestHandler
 # import base64
