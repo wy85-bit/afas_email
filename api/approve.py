@@ -43,7 +43,7 @@ class handler(BaseHTTPRequestHandler):
             }
         }
 
-        try:
+       try:
             resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
             
             self.send_response(200)
@@ -51,11 +51,17 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             
             if resp.status_code in [200, 201]:
-                result = json.dumps(resp.json(), indent=4)
+                # Safely try to parse JSON, fallback to raw text or a custom message
+                try:
+                    result = json.dumps(resp.json(), indent=4)
+                except Exception:
+                    result = resp.text if resp.text else "Record inserted successfully! (No JSON returned by server)"
+
                 html = f"""
                 <html><body>
                     <h1 style='color:green;'>🎉 THE BANANA IS YOURS!</h1>
                     <p><strong>Status:</strong> Success ({resp.status_code})</p>
+                    <p><strong>Targeted Monday:</strong> {monday_date}</p>
                     <hr>
                     <pre>{result}</pre>
                 </body></html>
