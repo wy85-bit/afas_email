@@ -34,18 +34,17 @@ class handler(BaseHTTPRequestHandler):
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00Z')
             
            # 2. THE REFINED PAYLOAD: PtRealization (Nacalculatie)
-            # 'EmId' = Employee, 'PrId' = Project, 'UnId' = Unit (Standard is UUR)
+           # 2. THE REFINED PAYLOAD: PtRealization (Nacalculatie)
             payload = {
                 "PtRealization": {
                     "Element": {
-                        "EmId": "1000994",
-                        "PrId": str(source.get("ProjectId")),
-                        "WpId": str(source.get("WorkAddressId", "")), # Optional: Work Address
-                        "Da": today_str,
-                        "Qu": float(source.get("QuantityUnit")),
-                        "UnId": "UUR", # 'UnId' is the standard field for Unit ID in PtRealization
-                        "De": f"Copy: {source.get('Description', 'Hours')}",
-                        "Unit": 1 # Often required to tell AFAS this is a '1' (Insert) action
+                        "EmId": "1000994",              # Employee ID
+                        "PrId": str(source.get("PrId") or source.get("ProjectId")), # Project ID
+                        "Da": today_str,               # Date in ISO format
+                        "Qu": float(source.get("Qu") or source.get("QuantityUnit")), # Quantity
+                        "UnId": "UUR",                 # Unit ID (Standard for hours)
+                        "De": f"Copy: {source.get('De', 'Hours')}", # Description
+                        "Bo": True                     # 'Bo' (Billed) - often mandatory to set as True/False
                     }
                 }
             }
