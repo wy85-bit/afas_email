@@ -32,7 +32,7 @@ class handler(BaseHTTPRequestHandler):
                         "DaTi": monday_date,
                         "VaIt": "1",
                         "ItCd": "01",
-                        "Qu": 8.0,  # Testing as a float
+                        "Qu": 8.0, 
                         "EmId": "1000994",
                         "Ch": True,
                         "Ap": True,
@@ -43,7 +43,7 @@ class handler(BaseHTTPRequestHandler):
             }
         }
 
-       try:
+        try:
             resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
             
             self.send_response(200)
@@ -51,11 +51,11 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             
             if resp.status_code in [200, 201]:
-                # Safely try to parse JSON, fallback to raw text or a custom message
+                # Safely try to parse JSON, fallback to raw text if empty
                 try:
                     result = json.dumps(resp.json(), indent=4)
                 except Exception:
-                    result = resp.text if resp.text else "Record inserted successfully! (No JSON returned by server)"
+                    result = resp.text if resp.text else "Record inserted successfully!"
 
                 html = f"""
                 <html><body>
@@ -81,6 +81,7 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(html.encode('utf-8'))
 
         except Exception as e:
+            # If the script itself fails, catch it here
             self.send_response(200)
             self.end_headers()
             self.wfile.write(f"Python Error: {str(e)}".encode())
