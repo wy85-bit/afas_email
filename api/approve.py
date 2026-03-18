@@ -10,42 +10,40 @@ BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices/connectors"
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # 1. Calculate the Monday of the current week (Targeting 2026-03-16 today)
+        # 1. Calculate the Monday of the current week
         today = datetime.now()
         days_to_subtract = today.weekday() 
         monday_date = (today - timedelta(days=days_to_subtract)).strftime('%Y-%m-%d')
 
-        # 2. Authentication
+        # 2. Authentication setup
         token = base64.b64encode(AFAS_TOKEN_XML.encode()).decode()
         headers = {
             'Authorization': f'AfasToken {token}', 
             'Content-Type': 'application/json'
         }
         
-        # 3. Optimized Weekly Payload
+        # 3. "Back to Basics" Payload
         payload = {
             "PtRealizationWeek": {
                 "Element": {
                     "Fields": {
-                        "EmId": "1000994",
-                        "DaTi": monday_date,
-                        "PrId": "100",  # Verify this Project ID exists in your test environment
-                        "PcId": "105",
-                        "ItCd": "01",
-                        "Qu": "8",
-                        "VaIt": "1",
                         "CreateDeclarations": True,
                         "GetPcIdAndPrId": True,
+                        "DaTi": monday_date,
+                        "VaIt": "1",
+                        "ItCd": "01",
+                        "Qu": 8.0,  # Testing as a float
+                        "EmId": "1000994",
                         "Ch": True,
                         "Ap": True,
-                        "Pr": True
+                        "Pr": True,
+                        "PcId": "105" 
                     }
                 }
             }
         }
 
         try:
-            # Posting to the specific Week Connector
             resp = requests.post(f"{BASE_URL}/PtRealizationWeek", headers=headers, json=payload)
             
             self.send_response(200)
@@ -53,13 +51,11 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             
             if resp.status_code in [200, 201]:
-                # Pretty-printing the successful JSON response
                 result = json.dumps(resp.json(), indent=4)
                 html = f"""
                 <html><body>
                     <h1 style='color:green;'>🎉 THE BANANA IS YOURS!</h1>
                     <p><strong>Status:</strong> Success ({resp.status_code})</p>
-                    <p><strong>Targeted Monday:</strong> {monday_date}</p>
                     <hr>
                     <pre>{result}</pre>
                 </body></html>
@@ -82,6 +78,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
             self.wfile.write(f"Python Error: {str(e)}".encode())
+            
 
 # from http.server import BaseHTTPRequestHandler
 # import base64
