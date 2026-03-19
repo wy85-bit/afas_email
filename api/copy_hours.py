@@ -62,11 +62,12 @@ class handler(BaseHTTPRequestHandler):
             )
             
             if post_resp.status_code in [200, 201]:
-                # AFAS returns the record ID in the JSON response on success
                 new_id = post_resp.json().get('id', 'unknown')
                 self._send_html(f"✅ Success! Created record {new_id} for {today_str}.")
             else:
-                # This will give us the specific validation error from AFAS
+                # This prints the error to your Terminal/Command Prompt
+                print(f"DEBUG: AFAS Response Body -> {post_resp.text}")     
+                # This sends the error to your Browser
                 self._send_html(f"❌ AFAS Error {post_resp.status_code}: {post_resp.text}")
         except Exception as e:
             self._send_html(f"Script Error: {str(e)}")
