@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 
 # --- CONFIGURATION ---
-AFAS_TOKEN_XML = "BA954747446083E42C08EBC43DD67A3D481845B0696C5A638AFF1EDBCAA7CAD5"
+AFAS_TOKEN_XML = "<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"
 # Use .resttest for your T90114TE environment
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 
