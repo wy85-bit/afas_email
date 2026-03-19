@@ -70,10 +70,10 @@ class handler(BaseHTTPRequestHandler):
                 # This prints the error to your Terminal/Command Prompt
                 print(f"DEBUG: AFAS Response Body -> {post_resp.text}")     
                 # This sends the error to your Browser
-                self._send_html(f"❌ AFAS Error {post_resp.status_code}: {post_resp.text}")
+                self._send_html(f"❌ AFAS Error {post_resp.status_code}: {repr(post_resp.text)}")
         except Exception as e:
             self._send_html(f"Script Error: {str(e)}")
-
+                
     def _send_html(self, message):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
