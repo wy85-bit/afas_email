@@ -22,8 +22,15 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             get_resp = requests.get(get_url, headers=headers)
-            rows = get_resp.json().get('rows', [])
-            
+            # rows = get_resp.json().get('rows', [])
+            if get_resp.status_code != 200:
+                self._send_html(f"❌ Error from AFAS: {get_resp.status_code} - {get_resp.text}")
+                return
+            try:
+                rows = get_resp.json().get('rows', [])
+            except Exception:
+                self._send_html(f"❌ AFAS sent a non-JSON response: {get_resp.text}")
+                return
             if not rows:
                 self._send_html("⚠️ No source hours found to copy.")
                 return
