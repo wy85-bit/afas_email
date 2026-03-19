@@ -6,7 +6,7 @@ from datetime import datetime
 
 # --- CONFIGURATION ---
 # Paste your FULL XML <token> block here
-AFAS_TOKEN_XML = """<token><version>1</version><data>YOUR_ACTUAL_XML_HERE</data></token>"""
+AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 
 class handler(BaseHTTPRequestHandler):
