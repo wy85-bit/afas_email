@@ -53,9 +53,7 @@ class handler(BaseHTTPRequestHandler):
 
             # 3. THE CORRECT ENDPOINT
             # Ensure no underscores and correct casing
-            # post_url = f"{BASE_URL}/updateconnectors/PtRealization"
-            # If that still gives a 404, try the more explicit name often found in Profit:
-            post_url = f"{BASE_URL}/updateconnectors/Profit_Realization"
+            post_url = f"{BASE_URL}/updateconnectors/PtRealization"
             
             post_resp = requests.post(
                 post_url, 
