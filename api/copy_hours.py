@@ -18,24 +18,26 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 1. FETCH THE TEMPLATE HOURS (The data we just confirmed works)
-            # We'll use 'Medewerker' since that worked in your last test!
+            # 1. FETCH THE TEMPLATE (Get existing info)
+            # We use Profit_Employees to get your standard project/worktype
             get_url = (f"{BASE_URL}/connectors/Profit_Employees?"
                        f"filterfieldids=Medewerker&filtervalues={EMPLOYEE_ID}&take=1")
             
             get_resp = requests.get(get_url, headers=headers)
-            source_data = get_resp.json().get('rows', [])
+            rows = get_resp.json().get('rows', [])
 
-            if not source_data:
-                self._send_html("❌ Could not find the source record to copy.")
+            if not rows:
+                self._send_html("❌ Could not find your template data in Profit_Employees.")
                 return
 
-            # 2. PREPARE THE NEW ENTRY
-            # We take the data we found and map it to the UpdateConnector format
-            template = source_data[0]
+            template = rows[0]
+            # Use the exact keys from your screenshot:
+            project_id = template.get("PrId")
+            work_type_id = template.get("UvId")
+            
+            # 2. PREPARE THE NEW POST (The "Copy" action)
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
-
-            # This payload structure is for the 'PtRealization' UpdateConnector
+            
             payload = {
                 "Objects": [
                     {
@@ -43,32 +45,42 @@ class handler(BaseHTTPRequestHandler):
                             "Fields": {
                                 "EmId": EMPLOYEE_ID,
                                 "Da": today_str,
-                                "PrId": template.get("ProjectId", "DEFAULT_PROJ"), # Use your project field name
-                                "Un": 8.0, # Let's default to 8 hours for the copy
-                                "UvId": template.get("WorkType", "DEFAULT_WORK")  # Use your work type field name
+                                "PrId": project_id,
+                                "UvId": work_type_id,
+                                "Un": 8.0, # Adjust hours if needed
+                                "Be": "Gecopieerd via Gemini Script" # Comment/Description
                             }
                         }
                     }
                 ]
             }
 
-            # 3. POST TO UPDATECONNECTOR
+            # 3. SEND TO UPDATE CONNECTOR
+            # Note: PtRealization is the standard for hour entries
             post_url = f"{BASE_URL}/connectors/PtRealization"
             post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
 
             if post_resp.status_code in [200, 201]:
-                self._send_html(f"🚀 <b>Success!</b> Hours copied for today ({today_str}).<br>AFAS Response: {post_resp.text}")
+                self._send_html(f"""
+                    <h2 style='color:#2e7d32;'>🚀 Success!</h2>
+                    <p>Hours copied for today (<b>{today_str}</b>).</p>
+                    <ul>
+                        <li><b>Project:</b> {project_id}</li>
+                        <li><b>Work Type:</b> {work_type_id}</li>
+                        <li><b>Hours:</b> 8.0</li>
+                    </ul>
+                """)
             else:
-                self._send_html(f"❌ <b>Failed to copy:</b> {post_resp.status_code}<br>{post_resp.text}")
+                self._send_html(f"❌ <b>AFAS rejected the copy:</b> {post_resp.status_code}<br>{post_resp.text}")
 
         except Exception as e:
-            self._send_html(f"❌ <b>Error:</b> {str(e)}")
+            self._send_html(f"❌ <b>Critical Error:</b> {str(e)}")
 
     def _send_html(self, message):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:20px;'>{message}</body></html>".encode())
+        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
 
 # from http.server import BaseHTTPRequestHandler
 # import base64
