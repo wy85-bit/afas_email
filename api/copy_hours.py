@@ -23,14 +23,30 @@ class handler(BaseHTTPRequestHandler):
                        f"filterfieldids=EmployeeId&filtervalues={EMPLOYEE_ID}&take=1")
             
             get_resp = requests.get(get_url, headers=headers)
-            history = get_resp.json().get('rows', [{}])[0]
+            
+            # Defensive Check: Ensure the request was successful
+            if get_resp.status_code != 200:
+                self._send_html(f"❌ <b>AFAS Read Error:</b> {get_resp.status_code} - {get_resp.text}")
+                return
 
-            # 2. EXTRACT using the EXACT keys from your screenshot
+            response_data = get_resp.json()
+            rows = response_data.get('rows', [])
+
+            # FIX: Check if rows actually exist before accessing index [0]
+            if not rows:
+                self._send_html(f"❌ <b>No History Found:</b> No previous hours found for Employee {EMPLOYEE_ID}. "
+                                f"Please log hours manually at least once.")
+                return
+
+            history = rows[0]
+
+            # 2. EXTRACT data from the last entry
             project_id = history.get("Project_1")
             work_type_id = history.get("Urensoort_1")
 
             if not project_id:
-                self._send_html(f"❌ Could not find 'Project_1' in history. Found: {list(history.keys())}")
+                self._send_html(f"❌ <b>Field Error:</b> Found data, but 'Project_1' was empty. "
+                                f"Available keys: {list(history.keys())}")
                 return
 
             # 3. WRITE to PtRealization (The Pen)
