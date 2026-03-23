@@ -2,7 +2,7 @@ from http.server import BaseHTTPRequestHandler
 import base64
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
@@ -16,49 +16,69 @@ class handler(BaseHTTPRequestHandler):
             'Content-Type': 'application/json'
         }
 
-        try:
-            # Using the exact YYYY-MM-DD format from your successful sample
-            # today_str = datetime.now().strftime('%Y-%m-%d')
-            from datetime import timedelta
-            today_str = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
-            payload = {
-                "Objects": [{
-                    "Element": {
-                        "Fields": {
-                            "CreateDeclarations": True,
-                            "GetPcIdAndPrId": True,
-                            "DaTi": today_str,
-                            "VaIt": "1",        # String format as requested
-                            "ItCd": "01",       # String format as requested
-                            "Qu": "8",          # String format as requested
-                            "EmId": "1000994",
-                            "Ch": True,
-                            "Ap": True,
-                            "Pr": True,
-                            "PcId": "105"
-                        }
-                    }
-                }]
+        # We'll test tomorrow to avoid any "already logged" conflicts
+        tomorrow_iso = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT00:00:00')
+        tomorrow_simple = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+
+        # List of payload variations to "scan" for a success
+        variations = [
+            {
+                "name": "Variation 1: All Strings (Exact as your sample)",
+                "payload": {
+                    "Objects": [{"Element": {"Fields": {
+                        "CreateDeclarations": True, "GetPcIdAndPrId": True,
+                        "DaTi": tomorrow_simple, "VaIt": "1", "ItCd": "01", "Qu": "8",
+                        "EmId": "1000994", "Ch": True, "Ap": True, "Pr": True, "PcId": "105"
+                    }}}]
+                }
+            },
+            {
+                "name": "Variation 2: Numeric IDs + ISO Date",
+                "payload": {
+                    "Objects": [{"Element": {"Fields": {
+                        "EmId": 1000994, "DaTi": tomorrow_iso, "PcId": 105,
+                        "VaIt": 1, "ItCd": "01", "Qu": 8.0, "Pr": True
+                    }}}]
+                }
+            },
+            {
+                "name": "Variation 3: Minimalist (Numeric)",
+                "payload": {
+                    "Objects": [{"Element": {"Fields": {
+                        "EmId": 1000994, "DaTi": tomorrow_simple, "PcId": 105, "VaIt": 1, "Qu": 8.0
+                    }}}]
+                }
             }
+        ]
 
-            post_url = f"{BASE_URL}/connectors/PtRealization"
-            post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
+        results_html = "<h2>🚀 AFAS Payload Scanner Results</h2><hr>"
 
-            if post_resp.status_code in [200, 201]:
-                self._send_html(f"🚀 <b>Mission Success!</b><br>Logged 8 hours to Project <b>105</b> for today ({today_str}).")
-            else:
-                # If it fails, show the exact error from AFAS
-                self._send_html(f"❌ <b>Post Failed:</b><br>Status: {post_resp.status_code}<br>Response: {post_resp.text}")
+        for var in variations:
+            try:
+                post_url = f"{BASE_URL}/connectors/PtRealization"
+                resp = requests.post(post_url, headers=headers, data=json.dumps(var["payload"]))
+                
+                status = "✅ SUCCESS" if resp.status_code in [200, 201] else "❌ FAILED"
+                results_html += f"<b>{var['name']}</b>: {status}<br>"
+                if resp.status_code not in [200, 201]:
+                    results_html += f"<small>Error: {resp.text}</small><br>"
+                results_html += "<br>"
 
-        except Exception as e:
-            self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
+                # Stop if we find a winner!
+                if resp.status_code in [200, 201]:
+                    results_html += "<h3>🎉 A winner was found! Use the settings from the success above.</h3>"
+                    break
+
+            except Exception as e:
+                results_html += f"<b>{var['name']}</b>: 💥 CRASHED ({str(e)})<br><br>"
+
+        self._send_html(results_html)
 
     def _send_html(self, message):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;line-height:1.6;'>{message}</body></html>".encode())
-
+        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;line-height:1.4;'>{message}</body></html>".encode())
         
 # from http.server import BaseHTTPRequestHandler
 # import base64
