@@ -43,8 +43,8 @@ class handler(BaseHTTPRequestHandler):
                             "Fields": {
                                 "EmId": EMPLOYEE_ID,
                                 "Da": today_str,
-                                "PrId": project_id,
-                                "UvId": work_type_id,
+                                "PrId": 150,
+                                "UvId": "1",
                                 "ItId": work_type_id, # FIX: Adding the mandatory Item ID
                                 "Un": 8.0,
                                 "Be": "Copied via Google"
