@@ -23,17 +23,25 @@ class handler(BaseHTTPRequestHandler):
  # Testing with the standard Date format first
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
 
+            try:
+            # Match the exact YYYY-MM-DD format from your successful sample
+            today_str = datetime.now().strftime('%Y-%m-%d')
+
             payload = {
                 "Objects": [{
                     "Element": {
                         "Fields": {
-                            "EmId": "1000994",
+                            "CreateDeclarations": True,
+                            "GetPcIdAndPrId": True,
                             "DaTi": today_str,
-                            "PcId": "105",
-                            "VaIt": 1,
-                            "ItCd": "01",
-                            "Qu": 8.0,
-                            "Be": "Copied via Script"  # Optional description
+                            "VaIt": "1",        # Back to String
+                            "ItCd": "01",       # Back to String
+                            "Qu": "8",          # Back to String
+                            "EmId": "1000994",
+                            "Ch": True,
+                            "Ap": True,
+                            "Pr": True,
+                            "PcId": "105"
                         }
                     }
                 }]
