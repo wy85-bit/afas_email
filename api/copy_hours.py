@@ -17,14 +17,7 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # Try the ISO format with T00:00:00, which is AFAS standard
-            # today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
-
- # Testing with the standard Date format first
-            today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
-
-            try:
-            # Match the exact YYYY-MM-DD format from your successful sample
+            # Using the exact YYYY-MM-DD format from your successful sample
             today_str = datetime.now().strftime('%Y-%m-%d')
 
             payload = {
@@ -34,9 +27,9 @@ class handler(BaseHTTPRequestHandler):
                             "CreateDeclarations": True,
                             "GetPcIdAndPrId": True,
                             "DaTi": today_str,
-                            "VaIt": "1",        # Back to String
-                            "ItCd": "01",       # Back to String
-                            "Qu": "8",          # Back to String
+                            "VaIt": "1",        # String format as requested
+                            "ItCd": "01",       # String format as requested
+                            "Qu": "8",          # String format as requested
                             "EmId": "1000994",
                             "Ch": True,
                             "Ap": True,
@@ -64,7 +57,6 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;line-height:1.6;'>{message}</body></html>".encode())
-
 
         
 # from http.server import BaseHTTPRequestHandler
