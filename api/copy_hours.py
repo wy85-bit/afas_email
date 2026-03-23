@@ -18,23 +18,22 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             # Try the ISO format with T00:00:00, which is AFAS standard
+            # today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
+
+ # Testing with the standard Date format first
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
 
             payload = {
                 "Objects": [{
                     "Element": {
                         "Fields": {
-                            "CreateDeclarations": True,
-                            "GetPcIdAndPrId": True,
-                            "DaTi": today_str,
-                            "VaIt": 1,        # Integer
-                            "ItCd": "01",
-                            "Qu": 8.0,        # Float
                             "EmId": "1000994",
-                            "Ch": True,
-                            "Ap": True,
-                            "Pr": True,
-                            "PcId": "105"
+                            "DaTi": today_str,
+                            "PcId": "105",
+                            "VaIt": 1,
+                            "ItCd": "01",
+                            "Qu": 8.0,
+                            "Be": "Copied via Script"  # Optional description
                         }
                     }
                 }]
