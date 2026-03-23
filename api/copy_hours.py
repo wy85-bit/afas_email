@@ -7,10 +7,6 @@ from datetime import datetime
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
-EMPLOYEE_ID = "1000994"
-
-# Set this to True if you keep getting "No History Found" to see available fields
-DEBUG_MODE = True
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -21,56 +17,26 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 1. READ from Profit_Realization
-            # If Debug is on, we take the last 5 entries regardless of Employee ID
-            if DEBUG_MODE:
-                get_url = f"{BASE_URL}/connectors/Profit_Realization?take=5"
-            else:
-                get_url = (f"{BASE_URL}/connectors/Profit_Realization?"
-                           f"filterfieldids=EmployeeId&filtervalues={EMPLOYEE_ID}&take=1")
-            
-            get_resp = requests.get(get_url, headers=headers)
-            
-            if get_resp.status_code != 200:
-                self._send_html(f"❌ <b>AFAS API Error:</b> {get_resp.status_code}<br>{get_resp.text}")
-                return
+            # Generate today's date in the format your payload used (YYYY-MM-DD)
+            today_str = datetime.now().strftime('%Y-%m-%d')
 
-            rows = get_resp.json().get('rows', [])
-
-            # --- DEBUG OUTPUT ---
-            if DEBUG_MODE:
-                if not rows:
-                    self._send_html("🔎 <b>Debug:</b> Connector returned 0 rows. Check connector permissions.")
-                else:
-                    keys = list(rows[0].keys())
-                    self._send_html(f"🔎 <b>Debug Mode:</b> Found {len(rows)} rows.<br><b>Available Fields:</b><br><pre>{json.dumps(keys, indent=2)}</pre>")
-                return
-
-            # --- NORMAL OPERATION ---
-            if not rows:
-                self._send_html(f"❌ <b>No History Found:</b> Employee {EMPLOYEE_ID} has no visible records in 'Profit_Realization'.")
-                return
-
-            history = rows[0]
-            project_id = history.get("Project_1")
-            work_type_id = history.get("Urensoort_1")
-
-            if not project_id:
-                self._send_html(f"❌ <b>Data Error:</b> 'Project_1' is empty. Fields found: {list(history.keys())}")
-                return
-
-            # 2. WRITE to PtRealization
-            today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
+            # --- THE "PROVEN" PAYLOAD ---
+            # Using the exact keys from your successful manual test
             payload = {
                 "Objects": [{
                     "Element": {
                         "Fields": {
-                            "EmId": EMPLOYEE_ID,
-                            "Da": today_str,
-                            "PrId": project_id,
-                            "UvId": work_type_id,
-                            "Un": 8.0,
-                            "Be": "Copied from History"
+                            "CreateDeclarations": True,
+                            "GetPcIdAndPrId": True,
+                            "DaTi": today_str,
+                            "VaIt": "1",
+                            "ItCd": "01",
+                            "Qu": "8",
+                            "EmId": "1000994",
+                            "Ch": True,
+                            "Ap": True,
+                            "Pr": True,
+                            "PcId": "105"
                         }
                     }
                 }]
@@ -80,12 +46,13 @@ class handler(BaseHTTPRequestHandler):
             post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
 
             if post_resp.status_code in [200, 201]:
-                self._send_html(f"✅ <b>Success!</b> Copied <b>{project_id}</b> to today ({today_str}).")
+                self._send_html(f"🚀 <b>Mission Success!</b><br>Logged 8 hours to Project <b>105</b> for today ({today_str}).")
             else:
-                self._send_html(f"❌ <b>Post Failed:</b> {post_resp.text}")
+                # If it fails, show the exact error from AFAS
+                self._send_html(f"❌ <b>Post Failed:</b><br>Status: {post_resp.status_code}<br>Response: {post_resp.text}")
 
         except Exception as e:
-            self._send_html(f"❌ <b>Script Crash:</b> {str(e)}")
+            self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
 
     def _send_html(self, message):
         self.send_response(200)
@@ -93,6 +60,8 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;line-height:1.6;'>{message}</body></html>".encode())
 
+
+        
 # from http.server import BaseHTTPRequestHandler
 # import base64
 # import requests
