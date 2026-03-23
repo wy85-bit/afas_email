@@ -16,7 +16,7 @@ class handler(BaseHTTPRequestHandler):
             'Content-Type': 'application/json'
         }
 
-    try:
+        try:
             # Try the ISO format with T00:00:00, which is AFAS standard
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
 
@@ -27,9 +27,9 @@ class handler(BaseHTTPRequestHandler):
                             "CreateDeclarations": True,
                             "GetPcIdAndPrId": True,
                             "DaTi": today_str,
-                            "VaIt": 1,        # Changed to integer
+                            "VaIt": 1,        # Integer
                             "ItCd": "01",
-                            "Qu": 8.0,       # Changed to float
+                            "Qu": 8.0,        # Float
                             "EmId": "1000994",
                             "Ch": True,
                             "Ap": True,
