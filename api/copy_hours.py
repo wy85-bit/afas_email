@@ -18,8 +18,9 @@ class handler(BaseHTTPRequestHandler):
 
         try:
             # Using the exact YYYY-MM-DD format from your successful sample
-            today_str = datetime.now().strftime('%Y-%m-%d')
-
+            # today_str = datetime.now().strftime('%Y-%m-%d')
+            from datetime import timedelta
+            today_str = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
             payload = {
                 "Objects": [{
                     "Element": {
