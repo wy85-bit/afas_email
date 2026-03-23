@@ -16,24 +16,31 @@ class handler(BaseHTTPRequestHandler):
             'Authorization': f'AfasToken {token_base64}',
             'Content-Type': 'application/json'
         }
- 
+
         try:
-            # 1. FETCH TEMPLATE
-            get_url = (f"{BASE_URL}/connectors/Profit_Employees?"
-                       f"filterfieldids=Medewerker&filtervalues={EMPLOYEE_ID}&take=1")
+            # 1. FETCH FROM HISTORY (Profit_Realization)
+            # We look for the most recent entry that ISN'T null
+            get_url = (f"{BASE_URL}/connectors/Profit_Realization?"
+                       f"filterfieldids=EmployeeId&filtervalues={EMPLOYEE_ID}&"
+                       f"operatortypes=1&take=1&skip=0")
             
             get_resp = requests.get(get_url, headers=headers)
-            rows = get_resp.json().get('rows', [])
+            history_rows = get_resp.json().get('rows', [])
 
-            if not rows:
-                self._send_html("❌ Template not found in AFAS.")
+            if not history_rows:
+                self._send_html("❌ No history found in Profit_Realization to copy from.")
                 return
 
-            template = rows[0]
-            project_id = template.get("PrId")
-            work_type_id = template.get("UvId")
-            
-            # 2. PREPARE THE POST WITH THE MISSING ITEM FIELD
+            # Grab the IDs from your last successful booking
+            last_entry = history_rows[0]
+            project_id = last_entry.get("Project") or last_entry.get("PrId")
+            work_type_id = last_entry.get("WorkType") or last_entry.get("UvId")
+
+            if not project_id or not work_type_id:
+                self._send_html(f"❌ Found history, but IDs were missing: Project={project_id}, WorkType={work_type_id}")
+                return
+
+            # 2. PREPARE THE NEW POST (To PtRealization)
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
             
             payload = {
@@ -43,26 +50,32 @@ class handler(BaseHTTPRequestHandler):
                             "Fields": {
                                 "EmId": EMPLOYEE_ID,
                                 "Da": today_str,
-                                "PrId": 150,
-                                "UvId": "1",
-                                "ItId": work_type_id, # FIX: Adding the mandatory Item ID
+                                "PrId": project_id,
+                                "UvId": work_type_id,
                                 "Un": 8.0,
-                                "Be": "Copied via Google"
+                                "Be": "Copied from History via Gemini"
                             }
                         }
                     }
                 ]
             }
 
-            # 3. SEND TO PtRealization
+            # 3. EXECUTE THE COPY
             post_url = f"{BASE_URL}/connectors/PtRealization"
             post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
 
             if post_resp.status_code in [200, 201]:
-                self._send_html(f"🚀 <b>Success!</b> Hours recorded for Project {project_id}.")
+                self._send_html(f"""
+                    <h2 style='color:#2e7d32;'>🍌 BANANA! (Success)</h2>
+                    <p>Successfully copied your last entry to today.</p>
+                    <hr>
+                    <b>Copied Data:</b><br>
+                    🏗️ Project: {project_id}<br>
+                    🛠️ Work Type: {work_type_id}<br>
+                    📅 Date: {today_str}
+                """)
             else:
-                # This will help us see if it asks for anything else
-                self._send_html(f"❌ <b>AFAS Still Grumpy:</b><br>{post_resp.text}")
+                self._send_html(f"❌ <b>AFAS Error:</b> {post_resp.text}")
 
         except Exception as e:
             self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
@@ -72,7 +85,6 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
-
 # from http.server import BaseHTTPRequestHandler
 # import base64
 # import requests
