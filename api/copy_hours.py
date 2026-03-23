@@ -18,7 +18,7 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 1. FETCH TEMPLATE (Using the working connector we found)
+            # 1. FETCH TEMPLATE
             get_url = (f"{BASE_URL}/connectors/Profit_Employees?"
                        f"filterfieldids=Medewerker&filtervalues={EMPLOYEE_ID}&take=1")
             
@@ -26,16 +26,14 @@ class handler(BaseHTTPRequestHandler):
             rows = get_resp.json().get('rows', [])
 
             if not rows:
-                self._send_html("❌ Template not found.")
+                self._send_html("❌ Template not found in AFAS.")
                 return
 
             template = rows[0]
-            
-            # Extract values based on your successful JSON screenshot
             project_id = template.get("PrId")
             work_type_id = template.get("UvId")
             
-            # 2. PREPARE THE POST
+            # 2. PREPARE THE POST WITH THE MISSING ITEM FIELD
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
             
             payload = {
@@ -47,6 +45,7 @@ class handler(BaseHTTPRequestHandler):
                                 "Da": today_str,
                                 "PrId": project_id,
                                 "UvId": work_type_id,
+                                "ItId": work_type_id, # FIX: Adding the mandatory Item ID
                                 "Un": 8.0,
                                 "Be": "Copied via Google"
                             }
@@ -60,20 +59,10 @@ class handler(BaseHTTPRequestHandler):
             post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
 
             if post_resp.status_code in [200, 201]:
-                self._send_html(f"""
-                    <div style='border:2px solid #4CAF50; padding:20px; border-radius:10px;'>
-                        <h2 style='color:#4CAF50; margin-top:0;'>✨ Mission Accomplished!</h2>
-                        <p>A new 8-hour entry has been created in your AFAS timesheet.</p>
-                        <hr>
-                        <b>Details Sent:</b><br>
-                        📅 Date: {today_str}<br>
-                        🏗️ Project: {project_id}<br>
-                        🛠️ Work Type: {work_type_id}<br>
-                        📝 Comment: Copied via Google
-                    </div>
-                """)
+                self._send_html(f"🚀 <b>Success!</b> Hours recorded for Project {project_id}.")
             else:
-                self._send_html(f"❌ <b>AFAS Error:</b> {post_resp.text}")
+                # This will help us see if it asks for anything else
+                self._send_html(f"❌ <b>AFAS Still Grumpy:</b><br>{post_resp.text}")
 
         except Exception as e:
             self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
@@ -83,7 +72,6 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
-
 
 # from http.server import BaseHTTPRequestHandler
 # import base64
