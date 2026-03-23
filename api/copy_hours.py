@@ -16,12 +16,10 @@ class handler(BaseHTTPRequestHandler):
             'Content-Type': 'application/json'
         }
 
-        try:
-            # Generate today's date in the format your payload used (YYYY-MM-DD)
-            today_str = datetime.now().strftime('%Y-%m-%d')
+    try:
+            # Try the ISO format with T00:00:00, which is AFAS standard
+            today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
 
-            # --- THE "PROVEN" PAYLOAD ---
-            # Using the exact keys from your successful manual test
             payload = {
                 "Objects": [{
                     "Element": {
@@ -29,9 +27,9 @@ class handler(BaseHTTPRequestHandler):
                             "CreateDeclarations": True,
                             "GetPcIdAndPrId": True,
                             "DaTi": today_str,
-                            "VaIt": "1",
+                            "VaIt": 1,        # Changed to integer
                             "ItCd": "01",
-                            "Qu": "8",
+                            "Qu": 8.0,       # Changed to float
                             "EmId": "1000994",
                             "Ch": True,
                             "Ap": True,
