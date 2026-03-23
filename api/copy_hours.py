@@ -2,7 +2,6 @@ from http.server import BaseHTTPRequestHandler
 import base64
 import requests
 import json
-from datetime import datetime, timedelta
 
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
@@ -11,75 +10,44 @@ BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
-        headers = {
-            'Authorization': f'AfasToken {token_base64}',
-            'Content-Type': 'application/json'
-        }
+        headers = {'Authorization': f'AfasToken {token_base64}', 'Content-Type': 'application/json'}
 
-        # We'll test tomorrow to avoid any "already logged" conflicts
-        tomorrow_iso = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT00:00:00')
-        tomorrow_simple = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        # We try three different 'buckets' to find any existing data
+        connectors = ["Profit_Realization", "Actual_costing", "Project_entries"]
+        
+        output = "<h2>🔍 Blueprint Finder</h2><p>Searching for a working example in your system...</p>"
 
-        # List of payload variations to "scan" for a success
-        variations = [
-            {
-                "name": "Variation 1: All Strings (Exact as your sample)",
-                "payload": {
-                    "Objects": [{"Element": {"Fields": {
-                        "CreateDeclarations": True, "GetPcIdAndPrId": True,
-                        "DaTi": tomorrow_simple, "VaIt": "1", "ItCd": "01", "Qu": "8",
-                        "EmId": "1000994", "Ch": True, "Ap": True, "Pr": True, "PcId": "105"
-                    }}}]
-                }
-            },
-            {
-                "name": "Variation 2: Numeric IDs + ISO Date",
-                "payload": {
-                    "Objects": [{"Element": {"Fields": {
-                        "EmId": 1000994, "DaTi": tomorrow_iso, "PcId": 105,
-                        "VaIt": 1, "ItCd": "01", "Qu": 8.0, "Pr": True
-                    }}}]
-                }
-            },
-            {
-                "name": "Variation 3: Minimalist (Numeric)",
-                "payload": {
-                    "Objects": [{"Element": {"Fields": {
-                        "EmId": 1000994, "DaTi": tomorrow_simple, "PcId": 105, "VaIt": 1, "Qu": 8.0
-                    }}}]
-                }
-            }
-        ]
-
-        results_html = "<h2>🚀 AFAS Payload Scanner Results</h2><hr>"
-
-        for var in variations:
+        for conn in connectors:
             try:
-                post_url = f"{BASE_URL}/connectors/PtRealization"
-                resp = requests.post(post_url, headers=headers, data=json.dumps(var["payload"]))
+                # We ask for the 1 most recent entry from ANYONE to see the fields
+                url = f"{BASE_URL}/connectors/{conn}?take=1"
+                resp = requests.get(url, headers=headers)
                 
-                status = "✅ SUCCESS" if resp.status_code in [200, 201] else "❌ FAILED"
-                results_html += f"<b>{var['name']}</b>: {status}<br>"
-                if resp.status_code not in [200, 201]:
-                    results_html += f"<small>Error: {resp.text}</small><br>"
-                results_html += "<br>"
-
-                # Stop if we find a winner!
-                if resp.status_code in [200, 201]:
-                    results_html += "<h3>🎉 A winner was found! Use the settings from the success above.</h3>"
-                    break
-
+                if resp.status_code == 200:
+                    data = resp.json().get('rows', [])
+                    if data:
+                        output += f"<h3>✅ Found data in: {conn}</h3>"
+                        output += f"<pre>{json.dumps(data[0], indent=2)}</pre>"
+                        break # Stop once we find a blueprint
+                    else:
+                        output += f"⚠️ {conn} returned 0 rows.<br>"
+                else:
+                    output += f"❌ {conn} error: {resp.status_code}<br>"
             except Exception as e:
-                results_html += f"<b>{var['name']}</b>: 💥 CRASHED ({str(e)})<br><br>"
+                output += f"💥 {conn} crashed: {str(e)}<br>"
 
-        self._send_html(results_html)
+        if "✅" not in output:
+            output += "<br><b>Conclusion:</b> Your API token is blind. It has no permission to read any hour tables."
+
+        self._send_html(output)
 
     def _send_html(self, message):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;line-height:1.4;'>{message}</body></html>".encode())
-        
+        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
+
+
 # from http.server import BaseHTTPRequestHandler
 # import base64
 # import requests
