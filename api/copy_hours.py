@@ -20,7 +20,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             # 2. THE SEARCH (Looking for your ID specifically)
             test_url = (f"{BASE_URL}/connectors/Profit_Realization?"
-                        f"filterfieldids=EmId&"
+                        f"filterfieldids=EmployeeId&"
                         f"filtervalues={EMPLOYEE_ID}&"
                         f"operatortypes=1&take=5")
             
