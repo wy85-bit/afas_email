@@ -2,7 +2,6 @@ from http.server import BaseHTTPRequestHandler
 import base64
 import requests
 import json
-from datetime import datetime, timedelta
 
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
@@ -11,7 +10,6 @@ EMPLOYEE_ID = "1000994"
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # 1. SETUP HEADERS CORRECTLY
         token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
         headers = {
             'Authorization': f'AfasToken {token_base64}',
@@ -19,39 +17,50 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 2. "WIDE NET" SEARCH
-            # We remove the date filter and just look for YOUR ID to see what comes back.
-            # We try 'EmployeeId' first. If it fails, we'll know.
+            # 1. ATTEMPT PRIMARY SEARCH
+            # We use 'take=5' to keep it light and check if the connector exists
             test_url = (f"{BASE_URL}/connectors/Profit_Realization?"
                         f"filterfieldids=EmployeeId&"
                         f"filtervalues={EMPLOYEE_ID}&"
-                        f"operatortypes=1&take=10")
+                        f"operatortypes=1&take=5")
             
             resp = requests.get(test_url, headers=headers)
             
-            if resp.status_code != 200:
-                self._send_html(f"❌ <b>AFAS rejected the request ({resp.status_code}):</b> {resp.text}")
+            # If 404, the connector name 'Profit_Realization' is likely wrong
+            if resp.status_code == 404:
+                self._send_html(f"❌ <b>404 Not Found:</b> The connector 'Profit_Realization' doesn't exist or isn't shared with your App Connector.")
+                return
+            elif resp.status_code != 200:
+                self._send_html(f"❌ <b>AFAS Error ({resp.status_code}):</b> {resp.text}")
                 return
 
-            rows = resp.json().get('rows', [])
+            data = resp.json()
+            rows = data.get('rows', [])
 
             if not rows:
-                # If zero rows come back for your EmployeeId, the field might be named differently
-                self._send_html("⚠️ <b>Search returned 0 rows.</b><br>"
-                                "This means either:<br>"
-                                "1. The field isn't called 'EmployeeId'<br>"
-                                "2. The connector is filtered to only show 'Open' hours (yours are Approved).")
+                # 2. DEBUG FALLBACK: If 0 rows, let's see if ANY rows exist at all
+                debug_url = f"{BASE_URL}/connectors/Profit_Realization?take=1"
+                debug_resp = requests.get(debug_url, headers=headers)
+                debug_rows = debug_resp.json().get('rows', [])
+
+                if not debug_rows:
+                    msg = ("⚠️ <b>Search returned 0 rows.</b><br><br>"
+                           "<b>Diagnosis:</b> I tried to pull <i>any</i> record and got nothing. "
+                           "This means the GetConnector 'Profit_Realization' is likely empty or has a hardcoded filter in AFAS Profit "
+                           "that excludes everything (like 'Status = Open').")
+                else:
+                    # Let's show you what a real row looks like so you can see the field names
+                    sample = debug_rows[0]
+                    msg = ("⚠️ <b>Your Employee ID found nothing.</b><br><br>"
+                           "But I found other data! This means your <b>EmployeeId</b> field name might be different.<br>"
+                           f"<b>Actual fields available:</b> <code>{', '.join(sample.keys())}</code>")
+                
+                self._send_html(msg)
                 return
 
-            # 3. SUCCESS: We found data! Let's show you what's inside.
-            first_row = rows[0]
-            field_names = ", ".join(first_row.keys())
-            
-            self._send_html(f"🔎 <b>Data Found!</b> I found {len(rows)} recent entries for you.<br><br>"
-                            f"<b>Technical Field Names:</b><br>"
-                            f"<code style='background:#eee; display:block; padding:10px;'>{field_names}</code><br>"
-                            f"<b>Sample Entry:</b><br>"
-                            f"<pre style='background:#f4f4f4; padding:10px;'>{json.dumps(first_row, indent=2)}</pre>")
+            # 3. SUCCESS
+            self._send_html(f"🔎 <b>Success!</b> Found {len(rows)} entries for {EMPLOYEE_ID}.<br>"
+                            f"<pre>{json.dumps(rows[0], indent=2)}</pre>")
 
         except Exception as e:
             self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
@@ -60,47 +69,18 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write(f"<html><body style='font-family:sans-serif; padding:20px;'>{message}</body></html>".encode())
+        response_html = f"""
+        <html>
+            <body style='font-family:sans-serif; padding:20px; line-height:1.6;'>
+                <div style='max-width:600px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;'>
+                    {message}
+                </div>
+            </body>
+        </html>
+        """
+        self.wfile.write(response_html.encode())
 
-        # --- THE ORIGINAL LOGIC (Commented out as requested) ---
-        # try:
-        #     # 1. Date Logic
-        #     today = datetime.now()
-        #     this_monday = today - timedelta(days=today.weekday())
-        #     last_monday = this_monday - timedelta(days=7)
-        #     last_friday = last_monday + timedelta(days=4)
-        #
-        #     # Formatting for the filter
-        #     source_start = last_monday.strftime('%d-%m-%Y')
-        #     source_end = last_friday.strftime('%d-%m-%Y')
-        #
-        #     # 2. THE MAIN ATTEMPT: Fetch last week's hours
-        #     get_url = (f"{BASE_URL}/connectors/Profit_Realization?"
-        #                f"filterfieldids=EmployeeId,Datum&"
-        #                f"filtervalues={EMPLOYEE_ID},{source_start};{source_end}&"
-        #                f"operatortypes=1,7")
-        #     
-        #     get_resp = requests.get(get_url, headers=headers)
-        #     source_rows = get_resp.json().get('rows', [])
-        #
-        #     # 3. DIAGNOSTIC FALLBACK
-        #     if not source_rows:
-        #         debug_url = f"{BASE_URL}/connectors/Profit_Realization?take=5"
-        #         debug_resp = requests.get(debug_url, headers=headers)
-        #         debug_data = debug_resp.json().get('rows', [])
-        #         
-        #         if not debug_data:
-        #             # (You can uncomment the HTML send here if needed)
-        #             pass 
-        #
-        # except Exception as e:
-        #     pass
 
-    def _send_html(self, message):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html; charset=utf-8')
-        self.end_headers()
-        self.wfile.write(f"<html><body style='font-family:sans-serif; padding:20px;'>{message}</body></html>".encode())
 # from http.server import BaseHTTPRequestHandler
 # import base64
 # import requests
