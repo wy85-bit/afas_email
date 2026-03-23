@@ -9,6 +9,9 @@ AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EA
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 EMPLOYEE_ID = "1000994"
 
+# Set this to True if you keep getting "No History Found" to see available fields
+DEBUG_MODE = True
+
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
@@ -18,38 +21,45 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 1. READ from Profit_Realization (The History Book)
-            get_url = (f"{BASE_URL}/connectors/Profit_Realization?"
-                       f"filterfieldids=EmployeeId&filtervalues={EMPLOYEE_ID}&take=1")
+            # 1. READ from Profit_Realization
+            # If Debug is on, we take the last 5 entries regardless of Employee ID
+            if DEBUG_MODE:
+                get_url = f"{BASE_URL}/connectors/Profit_Realization?take=5"
+            else:
+                get_url = (f"{BASE_URL}/connectors/Profit_Realization?"
+                           f"filterfieldids=EmployeeId&filtervalues={EMPLOYEE_ID}&take=1")
             
             get_resp = requests.get(get_url, headers=headers)
             
-            # Defensive Check: Ensure the request was successful
             if get_resp.status_code != 200:
-                self._send_html(f"❌ <b>AFAS Read Error:</b> {get_resp.status_code} - {get_resp.text}")
+                self._send_html(f"❌ <b>AFAS API Error:</b> {get_resp.status_code}<br>{get_resp.text}")
                 return
 
-            response_data = get_resp.json()
-            rows = response_data.get('rows', [])
+            rows = get_resp.json().get('rows', [])
 
-            # FIX: Check if rows actually exist before accessing index [0]
+            # --- DEBUG OUTPUT ---
+            if DEBUG_MODE:
+                if not rows:
+                    self._send_html("🔎 <b>Debug:</b> Connector returned 0 rows. Check connector permissions.")
+                else:
+                    keys = list(rows[0].keys())
+                    self._send_html(f"🔎 <b>Debug Mode:</b> Found {len(rows)} rows.<br><b>Available Fields:</b><br><pre>{json.dumps(keys, indent=2)}</pre>")
+                return
+
+            # --- NORMAL OPERATION ---
             if not rows:
-                self._send_html(f"❌ <b>No History Found:</b> No previous hours found for Employee {EMPLOYEE_ID}. "
-                                f"Please log hours manually at least once.")
+                self._send_html(f"❌ <b>No History Found:</b> Employee {EMPLOYEE_ID} has no visible records in 'Profit_Realization'.")
                 return
 
             history = rows[0]
-
-            # 2. EXTRACT data from the last entry
             project_id = history.get("Project_1")
             work_type_id = history.get("Urensoort_1")
 
             if not project_id:
-                self._send_html(f"❌ <b>Field Error:</b> Found data, but 'Project_1' was empty. "
-                                f"Available keys: {list(history.keys())}")
+                self._send_html(f"❌ <b>Data Error:</b> 'Project_1' is empty. Fields found: {list(history.keys())}")
                 return
 
-            # 3. WRITE to PtRealization (The Pen)
+            # 2. WRITE to PtRealization
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
             payload = {
                 "Objects": [{
@@ -70,19 +80,18 @@ class handler(BaseHTTPRequestHandler):
             post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
 
             if post_resp.status_code in [200, 201]:
-                self._send_html(f"🍌 <b>Success!</b> Copied Project <b>{project_id}</b> to today.")
+                self._send_html(f"✅ <b>Success!</b> Copied <b>{project_id}</b> to today ({today_str}).")
             else:
                 self._send_html(f"❌ <b>Post Failed:</b> {post_resp.text}")
 
         except Exception as e:
-            self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
+            self._send_html(f"❌ <b>Script Crash:</b> {str(e)}")
 
     def _send_html(self, message):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
-
+        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;line-height:1.6;'>{message}</body></html>".encode())
 
 # from http.server import BaseHTTPRequestHandler
 # import base64
