@@ -18,30 +18,24 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 1. FETCH ACTUAL WORK DATA (From Profit_Realization)
-            # This ensures we get a REAL Project ID (PrId) and Work Type (UvId)
-            get_url = (f"{BASE_URL}/connectors/Profit_Realization?"
-                       f"filterfieldids=EmployeeId&filtervalues={EMPLOYEE_ID}&take=1")
+            # 1. FETCH TEMPLATE (Using the working connector we found)
+            get_url = (f"{BASE_URL}/connectors/Profit_Employees?"
+                       f"filterfieldids=Medewerker&filtervalues={EMPLOYEE_ID}&take=1")
             
             get_resp = requests.get(get_url, headers=headers)
-            
-            if get_resp.status_code != 200:
-                self._send_html(f"❌ Error fetching template: {get_resp.status_code}")
-                return
-
             rows = get_resp.json().get('rows', [])
+
             if not rows:
-                self._send_html("⚠️ No previous hours found to copy. Please enter one day manually in AFAS first!")
+                self._send_html("❌ Template not found.")
                 return
 
             template = rows[0]
             
-            # 2. EXTRACT THE MAGIC VALUES
-            # These names must match the columns in Profit_Realization exactly
-            project_id = template.get("Project") or template.get("PrId")
-            work_type = template.get("WorkType") or template.get("UvId")
+            # Extract values based on your successful JSON screenshot
+            project_id = template.get("PrId")
+            work_type_id = template.get("UvId")
             
-            # 3. CONSTRUCT THE POST (To PtRealization)
+            # 2. PREPARE THE POST
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
             
             payload = {
@@ -49,26 +43,37 @@ class handler(BaseHTTPRequestHandler):
                     {
                         "Element": {
                             "Fields": {
-                                "EmId": EMPLOYEE_ID,    # Employee
-                                "Da": today_str,       # Date
-                                "PrId": project_id,    # Project
-                                "UvId": work_type,     # Work Type
-                                "Un": 8.0,             # Units/Hours
-                                "Be": "Gemini Auto-Copy" 
+                                "EmId": EMPLOYEE_ID,
+                                "Da": today_str,
+                                "PrId": project_id,
+                                "UvId": work_type_id,
+                                "Un": 8.0,
+                                "Be": "Copied via Google"
                             }
                         }
                     }
                 ]
             }
 
-            # 4. EXECUTE THE COPY
+            # 3. SEND TO PtRealization
             post_url = f"{BASE_URL}/connectors/PtRealization"
             post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
 
             if post_resp.status_code in [200, 201]:
-                self._send_html(f"🎉 <b>Success!</b> Hours copied to Project <b>{project_id}</b> for today.")
+                self._send_html(f"""
+                    <div style='border:2px solid #4CAF50; padding:20px; border-radius:10px;'>
+                        <h2 style='color:#4CAF50; margin-top:0;'>✨ Mission Accomplished!</h2>
+                        <p>A new 8-hour entry has been created in your AFAS timesheet.</p>
+                        <hr>
+                        <b>Details Sent:</b><br>
+                        📅 Date: {today_str}<br>
+                        🏗️ Project: {project_id}<br>
+                        🛠️ Work Type: {work_type_id}<br>
+                        📝 Comment: Copied via Google
+                    </div>
+                """)
             else:
-                self._send_html(f"❌ <b>AFAS rejected the POST:</b><br>{post_resp.text}")
+                self._send_html(f"❌ <b>AFAS Error:</b> {post_resp.text}")
 
         except Exception as e:
             self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
