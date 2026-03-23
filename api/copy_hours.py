@@ -18,64 +18,45 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 1. FETCH FROM HISTORY (Profit_Realization)
-            # We look for the most recent entry that ISN'T null
+            # 1. READ from Profit_Realization (The History Book)
             get_url = (f"{BASE_URL}/connectors/Profit_Realization?"
-                       f"filterfieldids=EmployeeId&filtervalues={EMPLOYEE_ID}&"
-                       f"operatortypes=1&take=1&skip=0")
+                       f"filterfieldids=EmployeeId&filtervalues={EMPLOYEE_ID}&take=1")
             
             get_resp = requests.get(get_url, headers=headers)
-            history_rows = get_resp.json().get('rows', [])
+            history = get_resp.json().get('rows', [{}])[0]
 
-            if not history_rows:
-                self._send_html("❌ No history found in Profit_Realization to copy from.")
+            # 2. EXTRACT using the EXACT keys from your screenshot
+            project_id = history.get("Project_1")
+            work_type_id = history.get("Urensoort_1")
+
+            if not project_id:
+                self._send_html(f"❌ Could not find 'Project_1' in history. Found: {list(history.keys())}")
                 return
 
-            # Grab the IDs from your last successful booking
-            last_entry = history_rows[0]
-            project_id = last_entry.get("Project") or last_entry.get("PrId")
-            work_type_id = last_entry.get("WorkType") or last_entry.get("UvId")
-
-            if not project_id or not work_type_id:
-                self._send_html(f"❌ Found history, but IDs were missing: Project={project_id}, WorkType={work_type_id}")
-                return
-
-            # 2. PREPARE THE NEW POST (To PtRealization)
+            # 3. WRITE to PtRealization (The Pen)
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
-            
             payload = {
-                "Objects": [
-                    {
-                        "Element": {
-                            "Fields": {
-                                "EmId": EMPLOYEE_ID,
-                                "Da": today_str,
-                                "PrId": project_id,
-                                "UvId": work_type_id,
-                                "Un": 8.0,
-                                "Be": "Copied from History via Gemini"
-                            }
+                "Objects": [{
+                    "Element": {
+                        "Fields": {
+                            "EmId": EMPLOYEE_ID,
+                            "Da": today_str,
+                            "PrId": project_id,
+                            "UvId": work_type_id,
+                            "Un": 8.0,
+                            "Be": "Copied from History"
                         }
                     }
-                ]
+                }]
             }
 
-            # 3. EXECUTE THE COPY
             post_url = f"{BASE_URL}/connectors/PtRealization"
             post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
 
             if post_resp.status_code in [200, 201]:
-                self._send_html(f"""
-                    <h2 style='color:#2e7d32;'>🍌 BANANA! (Success)</h2>
-                    <p>Successfully copied your last entry to today.</p>
-                    <hr>
-                    <b>Copied Data:</b><br>
-                    🏗️ Project: {project_id}<br>
-                    🛠️ Work Type: {work_type_id}<br>
-                    📅 Date: {today_str}
-                """)
+                self._send_html(f"🍌 <b>Success!</b> Copied Project <b>{project_id}</b> to today.")
             else:
-                self._send_html(f"❌ <b>AFAS Error:</b> {post_resp.text}")
+                self._send_html(f"❌ <b>Post Failed:</b> {post_resp.text}")
 
         except Exception as e:
             self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
@@ -85,6 +66,8 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
+
+
 # from http.server import BaseHTTPRequestHandler
 # import base64
 # import requests
