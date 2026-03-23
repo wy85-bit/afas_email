@@ -11,7 +11,7 @@ EMPLOYEE_ID = "1000994"
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # 1. Prepare Authorization (Moved outside comments so it works)
+        # 1. SETUP HEADERS CORRECTLY
         token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
         headers = {
             'Authorization': f'AfasToken {token_base64}',
@@ -19,25 +19,48 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 2. Diagnostic Check: See what Connectors this token can actually see
-            check_url = f"{BASE_URL}/connectors" 
-            resp = requests.get(check_url, headers=headers)
+            # 2. "WIDE NET" SEARCH
+            # We remove the date filter and just look for YOUR ID to see what comes back.
+            # We try 'EmployeeId' first. If it fails, we'll know.
+            test_url = (f"{BASE_URL}/connectors/Profit_Realization?"
+                        f"filterfieldids=EmployeeId&"
+                        f"filtervalues={EMPLOYEE_ID}&"
+                        f"operatortypes=1&take=10")
             
-            if resp.status_code == 200:
-                available = resp.json().get('rows', [])
-                names = [r.get('id') for r in available]
-                
-                if "Profit_Realization" in names:
-                    self._send_html(f"✅ Connection is ALIVE. 'Profit_Realization' is available. <br>"
-                                    f"<b>Verdict:</b> The connector probably has a filter hiding Approved hours.")
-                else:
-                    self._send_html(f"❌ Connection alive, but <b>'Profit_Realization' is MISSING</b> from your App Connector permissions.<br>"
-                                    f"Available connectors: {', '.join(names[:10])}...")
-            else:
-                self._send_html(f"❌ <b>API Error {resp.status_code}:</b> {resp.text}")
+            resp = requests.get(test_url, headers=headers)
+            
+            if resp.status_code != 200:
+                self._send_html(f"❌ <b>AFAS rejected the request ({resp.status_code}):</b> {resp.text}")
+                return
+
+            rows = resp.json().get('rows', [])
+
+            if not rows:
+                # If zero rows come back for your EmployeeId, the field might be named differently
+                self._send_html("⚠️ <b>Search returned 0 rows.</b><br>"
+                                "This means either:<br>"
+                                "1. The field isn't called 'EmployeeId'<br>"
+                                "2. The connector is filtered to only show 'Open' hours (yours are Approved).")
+                return
+
+            # 3. SUCCESS: We found data! Let's show you what's inside.
+            first_row = rows[0]
+            field_names = ", ".join(first_row.keys())
+            
+            self._send_html(f"🔎 <b>Data Found!</b> I found {len(rows)} recent entries for you.<br><br>"
+                            f"<b>Technical Field Names:</b><br>"
+                            f"<code style='background:#eee; display:block; padding:10px;'>{field_names}</code><br>"
+                            f"<b>Sample Entry:</b><br>"
+                            f"<pre style='background:#f4f4f4; padding:10px;'>{json.dumps(first_row, indent=2)}</pre>")
 
         except Exception as e:
-            self._send_html(f"❌ <b>Script Error during diagnostic:</b> {str(e)}")
+            self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
+
+    def _send_html(self, message):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(f"<html><body style='font-family:sans-serif; padding:20px;'>{message}</body></html>".encode())
 
         # --- THE ORIGINAL LOGIC (Commented out as requested) ---
         # try:
