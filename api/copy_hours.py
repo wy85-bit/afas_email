@@ -11,78 +11,95 @@ EMPLOYEE_ID = "1000994"
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
-        headers = {
-            'Authorization': f'AfasToken {token_base64}',
-            'Content-Type': 'application/json'
-        }
-
-        # 1. Date Logic
-        today = datetime.now()
-        this_monday = today - timedelta(days=today.weekday())
-        last_monday = this_monday - timedelta(days=7)
-        last_friday = last_monday + timedelta(days=4)
-
-        # Formatting for the filter
-        source_start = last_monday.strftime('%d-%m-%Y')
-        source_end = last_friday.strftime('%d-%m-%Y')
-
         try:
-            # 2. THE MAIN ATTEMPT: Fetch last week's hours
-            get_url = (f"{BASE_URL}/connectors/Profit_Realization?"
-                       f"filterfieldids=EmployeeId,Datum&"
-                       f"filtervalues={EMPLOYEE_ID},{source_start};{source_end}&"
-                       f"operatortypes=1,7")
+            # Let's see what Connectors this token is actually ALLOWED to see
+            check_url = f"{BASE_URL}/connectors" 
+            resp = requests.get(check_url, headers=headers)
             
-            get_resp = requests.get(get_url, headers=headers)
-            source_rows = get_resp.json().get('rows', [])
-
-            # 3. DIAGNOSTIC FALLBACK: If empty, find out why
-            if not source_rows:
-                # Let's grab the last 5 entries regardless of date to see the field names
-                debug_url = f"{BASE_URL}/connectors/Profit_Realization?take=5"
-                debug_resp = requests.get(debug_url, headers=headers)
-                debug_data = debug_resp.json().get('rows', [])
+            if resp.status_code == 200:
+                available = resp.json().get('rows', [])
+                names = [r.get('id') for r in available]
                 
-                if not debug_data:
-                    self._send_html("⚠️ <b>Total Blackout:</b> The connector returned 0 rows even without filters. Check permissions.")
-                    return
+                if "Profit_Realization" in names:
+                    self._send_html(f"✅ Connection is ALIVE. 'Profit_Realization' is available. <br>"
+                                    f"<b>Verdict:</b> The connector probably has a filter hiding Approved hours.")
+                else:
+                    self._send_html(f"❌ Connection alive, but <b>'Profit_Realization' is MISSING</b> from your App Connector permissions.<br>"
+                                    f"Available connectors: {', '.join(names[:10])}...")
+            else:
+                self._send_html(f"❌ <b>API Error {resp.status_code}:</b> {resp.text}")
+    #     token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
+    #     headers = {
+    #         'Authorization': f'AfasToken {token_base64}',
+    #         'Content-Type': 'application/json'
+    #     }
 
-                # Get the keys (field names) from the first record found
-                available_fields = ", ".join(debug_data[0].keys())
-                self._send_html(f"🔎 <b>Field Discovery Mode:</b><br>"
-                                f"Filtered search for '{source_start}' failed, but I found other records.<br><br>"
-                                f"<b>Available fields in this connector:</b><br>"
-                                f"<code style='background:#eee; padding:5px;'>{available_fields}</code><br><br>"
-                                f"<i>Check if 'Datum' is in that list. If not, tell me which one looks like a date!</i>")
-                return
+    #     # 1. Date Logic
+    #     today = datetime.now()
+    #     this_monday = today - timedelta(days=today.weekday())
+    #     last_monday = this_monday - timedelta(days=7)
+    #     last_friday = last_monday + timedelta(days=4)
 
-            # 4. POST ENTRIES (If rows were found)
-            success_count = 0
-            for entry in source_rows:
-                orig_dt = datetime.fromisoformat(entry['Datum'].replace('Z', ''))
-                new_date_str = (orig_dt + timedelta(days=7)).strftime('%Y-%m-%d')
+    #     # Formatting for the filter
+    #     source_start = last_monday.strftime('%d-%m-%Y')
+    #     source_end = last_friday.strftime('%d-%m-%Y')
 
-                payload = {
-                    "PtRealization": {
-                        "Element": {
-                            "EnId": EMPLOYEE_ID,
-                            "PrId": str(entry.get("Projectnummer", "")),
-                            "Da": new_date_str,
-                            "Qu": float(entry.get("Aantal_eenheden", 0)),
-                            "ItId": str(entry.get("Itemcode", "")),
-                            "UnId": str(entry.get("Eenheid", "UUR")),
-                            "De": f"Auto-Copy: {entry.get('Omschrijving', 'Hours')}"
-                        }
-                    }
-                }
-                requests.post(f"{BASE_URL}/updateconnectors/PtRealization", headers=headers, data=json.dumps(payload))
-                success_count += 1
+    #     try:
+    #         # 2. THE MAIN ATTEMPT: Fetch last week's hours
+    #         get_url = (f"{BASE_URL}/connectors/Profit_Realization?"
+    #                    f"filterfieldids=EmployeeId,Datum&"
+    #                    f"filtervalues={EMPLOYEE_ID},{source_start};{source_end}&"
+    #                    f"operatortypes=1,7")
+            
+    #         get_resp = requests.get(get_url, headers=headers)
+    #         source_rows = get_resp.json().get('rows', [])
 
-            self._send_html(f"✅ <b>Success!</b> Copied {success_count} lines to the current week.")
+    #         # 3. DIAGNOSTIC FALLBACK: If empty, find out why
+    #         if not source_rows:
+    #             # Let's grab the last 5 entries regardless of date to see the field names
+    #             debug_url = f"{BASE_URL}/connectors/Profit_Realization?take=5"
+    #             debug_resp = requests.get(debug_url, headers=headers)
+    #             debug_data = debug_resp.json().get('rows', [])
+                
+    #             if not debug_data:
+    #                 self._send_html("⚠️ <b>Total Blackout:</b> The connector returned 0 rows even without filters. Check permissions.")
+    #                 return
 
-        except Exception as e:
-            self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
+    #             # Get the keys (field names) from the first record found
+    #             available_fields = ", ".join(debug_data[0].keys())
+    #             self._send_html(f"🔎 <b>Field Discovery Mode:</b><br>"
+    #                             f"Filtered search for '{source_start}' failed, but I found other records.<br><br>"
+    #                             f"<b>Available fields in this connector:</b><br>"
+    #                             f"<code style='background:#eee; padding:5px;'>{available_fields}</code><br><br>"
+    #                             f"<i>Check if 'Datum' is in that list. If not, tell me which one looks like a date!</i>")
+    #             return
+
+    #         # 4. POST ENTRIES (If rows were found)
+    #         success_count = 0
+    #         for entry in source_rows:
+    #             orig_dt = datetime.fromisoformat(entry['Datum'].replace('Z', ''))
+    #             new_date_str = (orig_dt + timedelta(days=7)).strftime('%Y-%m-%d')
+
+    #             payload = {
+    #                 "PtRealization": {
+    #                     "Element": {
+    #                         "EnId": EMPLOYEE_ID,
+    #                         "PrId": str(entry.get("Projectnummer", "")),
+    #                         "Da": new_date_str,
+    #                         "Qu": float(entry.get("Aantal_eenheden", 0)),
+    #                         "ItId": str(entry.get("Itemcode", "")),
+    #                         "UnId": str(entry.get("Eenheid", "UUR")),
+    #                         "De": f"Auto-Copy: {entry.get('Omschrijving', 'Hours')}"
+    #                     }
+    #                 }
+    #             }
+    #             requests.post(f"{BASE_URL}/updateconnectors/PtRealization", headers=headers, data=json.dumps(payload))
+    #             success_count += 1
+
+    #         self._send_html(f"✅ <b>Success!</b> Copied {success_count} lines to the current week.")
+
+    #     except Exception as e:
+    #         self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
 
     def _send_html(self, message):
         self.send_response(200)
