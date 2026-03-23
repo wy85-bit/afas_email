@@ -6,62 +6,68 @@ import json
 # --- CONFIGURATION ---
 AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
-EMPLOYEE_ID = "1000994"
+# Using the ID from your previous notes
+EMPLOYEE_ID = "1000994" 
+# Based on your latest screenshot image_7357ea.png
+CONNECTOR_NAME = "Profit_Employees" 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # 1. SETUP AUTH
         token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
         headers = {
             'Authorization': f'AfasToken {token_base64}',
             'Content-Type': 'application/json'
         }
 
+        # List of potential internal field names for the Employee ID
+        possible_fields = ["EmployeeId", "Employee", "Medewerker"]
+        found_data = None
+        last_error = ""
+
         try:
-            # 2. THE SEARCH (Looking for your ID specifically)
-            test_url = (f"{BASE_URL}/connectors/Profit_Realization?"
-                        f"filterfieldids=EmployeeId&"
-                        f"filtervalues={EMPLOYEE_ID}&"
-                        f"operatortypes=1&take=5")
-            
-            resp = requests.get(test_url, headers=headers)
-            
-            # Handle API-level errors (404, 401, etc.)
-            if resp.status_code != 200:
-                self._send_html(f"❌ <b>AFAS API Error {resp.status_code}</b><br>Target: <code>{test_url}</code><br>Response: {resp.text}")
-                return
-
-            rows = resp.json().get('rows', [])
-
-            if not rows:
-                # 3. DEBUG FALLBACK: If we find nothing for you, let's see if we can find ANYTHING.
-                debug_url = f"{BASE_URL}/connectors/Profit_Realization?take=1"
-                debug_resp = requests.get(debug_url, headers=headers)
-                debug_rows = debug_resp.json().get('rows', [])
-
-                if not debug_rows:
-                    msg = ("⚠️ <b>The Search returned 0 rows.</b><br><br>"
-                           "<b>Possible Fixes:</b><br>"
-                           "1. Open AFAS Profit (Windows) -> GetConnector 'Profit_Realization'.<br>"
-                           "2. Check if there is a <b>Filter</b> blocking 'Approved' hours (Status 3).<br>"
-                           "3. Ensure the field name is exactly <code>EmployeeId</code>.")
-                else:
-                    # We found someone else's data! Let's see what the fields are.
-                    sample = debug_rows[0]
-                    msg = (f"⚠️ <b>Found data, but not for ID {EMPLOYEE_ID}.</b><br><br>"
-                           f"<b>Check your field names:</b> The available fields are:<br>"
-                           f"<code>{', '.join(sample.keys())}</code><br><br>"
-                           f"<b>Sample row:</b><pre>{json.dumps(sample, indent=2)}</pre>")
+            # Loop through potential field names until we find a match
+            for field in possible_fields:
+                url = (f"{BASE_URL}/connectors/{CONNECTOR_NAME}?"
+                       f"filterfieldids={field}&"
+                       f"filtervalues={EMPLOYEE_ID}&"
+                       f"operatortypes=1&take=1")
                 
-                self._send_html(msg)
-                return
+                resp = requests.get(url, headers=headers)
+                
+                if resp.status_code == 200:
+                    rows = resp.json().get('rows', [])
+                    if rows:
+                        found_data = rows[0]
+                        break
+                else:
+                    last_error = f"API Error {resp.status_code}: {resp.text}"
 
-            # 4. SUCCESS: We found your data!
-            self._send_html(f"✅ <b>Success! Found {len(rows)} entries.</b><br>"
-                            f"<pre>{json.dumps(rows[0], indent=2)}</pre>")
+            # --- RESPONSE HANDLING ---
+            if found_data:
+                self._send_html(f"""
+                    <h2 style='color:#2e7d32;'>✅ Connection Successful!</h2>
+                    <p>I found your record in <b>{CONNECTOR_NAME}</b>.</p>
+                    <div style='background:#f4f4f4; padding:15px; border-radius:5px; border-left:5px solid #2e7d32;'>
+                        <b>Field matched:</b> {field}<br>
+                        <b>Data retrieved:</b>
+                        <pre>{json.dumps(found_data, indent=2)}</pre>
+                    </div>
+                """)
+            else:
+                self._send_html(f"""
+                    <h2 style='color:#d32f2f;'>❌ No Data Found</h2>
+                    <p>I reached the server, but couldn't find ID <b>{EMPLOYEE_ID}</b> in <b>{CONNECTOR_NAME}</b>.</p>
+                    <p style='font-size:0.9em; color:#666;'><i>Technical Details: {last_error if last_error else "Search returned 0 rows for all common field names."}</i></p>
+                    <hr>
+                    <b>Next Steps:</b>
+                    <ul>
+                        <li>Ensure the Employee ID '{EMPLOYEE_ID}' exists in AFAS.</li>
+                        <li>Check if the App Connector has permissions for '{CONNECTOR_NAME}'.</li>
+                    </ul>
+                """)
 
         except Exception as e:
-            self._send_html(f"❌ <b>Python Script Error:</b> {str(e)}")
+            self._send_html(f"<h2 style='color:#d32f2f;'>❌ Script Error</h2><p>{str(e)}</p>")
 
     def _send_html(self, message):
         self.send_response(200)
@@ -69,14 +75,15 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         html = f"""
         <html>
-            <body style='font-family:sans-serif; padding:40px; background:#f9f9f9;'>
-                <div style='background:white; padding:20px; border-radius:8px; border:1px solid #ddd; max-width:700px; margin:auto;'>
+            <body style='font-family:sans-serif; padding:30px; line-height:1.6; background:#fafafa;'>
+                <div style='max-width:700px; margin:auto; background:white; padding:30px; border-radius:12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
                     {message}
                 </div>
             </body>
         </html>
         """
         self.wfile.write(html.encode())
+
 
 # from http.server import BaseHTTPRequestHandler
 # import base64
