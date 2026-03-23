@@ -16,7 +16,7 @@ class handler(BaseHTTPRequestHandler):
             'Authorization': f'AfasToken {token_base64}',
             'Content-Type': 'application/json'
         }
-
+ 
         try:
             # 1. FETCH TEMPLATE
             get_url = (f"{BASE_URL}/connectors/Profit_Employees?"
