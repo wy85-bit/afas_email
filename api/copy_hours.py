@@ -10,6 +10,7 @@ EMPLOYEE_ID = "1000994"
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        # 1. SETUP AUTH
         token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
         headers = {
             'Authorization': f'AfasToken {token_base64}',
@@ -17,8 +18,7 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 1. ATTEMPT PRIMARY SEARCH
-            # We use 'take=5' to keep it light and check if the connector exists
+            # 2. THE SEARCH (Looking for your ID specifically)
             test_url = (f"{BASE_URL}/connectors/Profit_Realization?"
                         f"filterfieldids=EmployeeId&"
                         f"filtervalues={EMPLOYEE_ID}&"
@@ -26,60 +26,57 @@ class handler(BaseHTTPRequestHandler):
             
             resp = requests.get(test_url, headers=headers)
             
-            # If 404, the connector name 'Profit_Realization' is likely wrong
-            if resp.status_code == 404:
-                self._send_html(f"❌ <b>404 Not Found:</b> The connector 'Profit_Realization' doesn't exist or isn't shared with your App Connector.")
-                return
-            elif resp.status_code != 200:
-                self._send_html(f"❌ <b>AFAS Error ({resp.status_code}):</b> {resp.text}")
+            # Handle API-level errors (404, 401, etc.)
+            if resp.status_code != 200:
+                self._send_html(f"❌ <b>AFAS API Error {resp.status_code}</b><br>Target: <code>{test_url}</code><br>Response: {resp.text}")
                 return
 
-            data = resp.json()
-            rows = data.get('rows', [])
+            rows = resp.json().get('rows', [])
 
             if not rows:
-                # 2. DEBUG FALLBACK: If 0 rows, let's see if ANY rows exist at all
+                # 3. DEBUG FALLBACK: If we find nothing for you, let's see if we can find ANYTHING.
                 debug_url = f"{BASE_URL}/connectors/Profit_Realization?take=1"
                 debug_resp = requests.get(debug_url, headers=headers)
                 debug_rows = debug_resp.json().get('rows', [])
 
                 if not debug_rows:
-                    msg = ("⚠️ <b>Search returned 0 rows.</b><br><br>"
-                           "<b>Diagnosis:</b> I tried to pull <i>any</i> record and got nothing. "
-                           "This means the GetConnector 'Profit_Realization' is likely empty or has a hardcoded filter in AFAS Profit "
-                           "that excludes everything (like 'Status = Open').")
+                    msg = ("⚠️ <b>The Search returned 0 rows.</b><br><br>"
+                           "<b>Possible Fixes:</b><br>"
+                           "1. Open AFAS Profit (Windows) -> GetConnector 'Profit_Realization'.<br>"
+                           "2. Check if there is a <b>Filter</b> blocking 'Approved' hours (Status 3).<br>"
+                           "3. Ensure the field name is exactly <code>EmployeeId</code>.")
                 else:
-                    # Let's show you what a real row looks like so you can see the field names
+                    # We found someone else's data! Let's see what the fields are.
                     sample = debug_rows[0]
-                    msg = ("⚠️ <b>Your Employee ID found nothing.</b><br><br>"
-                           "But I found other data! This means your <b>EmployeeId</b> field name might be different.<br>"
-                           f"<b>Actual fields available:</b> <code>{', '.join(sample.keys())}</code>")
+                    msg = (f"⚠️ <b>Found data, but not for ID {EMPLOYEE_ID}.</b><br><br>"
+                           f"<b>Check your field names:</b> The available fields are:<br>"
+                           f"<code>{', '.join(sample.keys())}</code><br><br>"
+                           f"<b>Sample row:</b><pre>{json.dumps(sample, indent=2)}</pre>")
                 
                 self._send_html(msg)
                 return
 
-            # 3. SUCCESS
-            self._send_html(f"🔎 <b>Success!</b> Found {len(rows)} entries for {EMPLOYEE_ID}.<br>"
+            # 4. SUCCESS: We found your data!
+            self._send_html(f"✅ <b>Success! Found {len(rows)} entries.</b><br>"
                             f"<pre>{json.dumps(rows[0], indent=2)}</pre>")
 
         except Exception as e:
-            self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
+            self._send_html(f"❌ <b>Python Script Error:</b> {str(e)}")
 
     def _send_html(self, message):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        response_html = f"""
+        html = f"""
         <html>
-            <body style='font-family:sans-serif; padding:20px; line-height:1.6;'>
-                <div style='max-width:600px; margin:auto; border:1px solid #ddd; padding:20px; border-radius:10px;'>
+            <body style='font-family:sans-serif; padding:40px; background:#f9f9f9;'>
+                <div style='background:white; padding:20px; border-radius:8px; border:1px solid #ddd; max-width:700px; margin:auto;'>
                     {message}
                 </div>
             </body>
         </html>
         """
-        self.wfile.write(response_html.encode())
-
+        self.wfile.write(html.encode())
 
 # from http.server import BaseHTTPRequestHandler
 # import base64
