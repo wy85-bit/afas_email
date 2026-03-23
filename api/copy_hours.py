@@ -18,8 +18,7 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 1. FETCH THE TEMPLATE (Get existing info)
-            # We use Profit_Employees to get your standard project/worktype
+            # 1. FETCH THE TEMPLATE
             get_url = (f"{BASE_URL}/connectors/Profit_Employees?"
                        f"filterfieldids=Medewerker&filtervalues={EMPLOYEE_ID}&take=1")
             
@@ -27,15 +26,21 @@ class handler(BaseHTTPRequestHandler):
             rows = get_resp.json().get('rows', [])
 
             if not rows:
-                self._send_html("❌ Could not find your template data in Profit_Employees.")
+                self._send_html("❌ Template not found in Profit_Employees.")
                 return
 
             template = rows[0]
-            # Use the exact keys from your screenshot:
+            
+            # Use the exact values from your successful "Success" screen!
+            # We use .get() to ensure we don't crash if a field is missing.
             project_id = template.get("PrId")
             work_type_id = template.get("UvId")
             
-            # 2. PREPARE THE NEW POST (The "Copy" action)
+            if not project_id:
+                self._send_html(f"❌ Found record, but 'PrId' (Project) was empty. Data: {json.dumps(template)}")
+                return
+
+            # 2. PREPARE THE POST
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
             
             payload = {
@@ -45,36 +50,28 @@ class handler(BaseHTTPRequestHandler):
                             "Fields": {
                                 "EmId": EMPLOYEE_ID,
                                 "Da": today_str,
-                                "PrId": project_id,
-                                "UvId": work_type_id,
-                                "Un": 8.0, # Adjust hours if needed
-                                "Be": "Gecopieerd via Gemini Script" # Comment/Description
+                                "PrId": str(project_id).strip(), # Ensure it's a clean string
+                                "UvId": str(work_type_id).strip() if work_type_id else "1", 
+                                "Un": 8.0,
+                                "Be": "Copied via Gemini"
                             }
                         }
                     }
                 ]
             }
 
-            # 3. SEND TO UPDATE CONNECTOR
-            # Note: PtRealization is the standard for hour entries
+            # 3. SEND TO PtRealization
             post_url = f"{BASE_URL}/connectors/PtRealization"
             post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
 
             if post_resp.status_code in [200, 201]:
-                self._send_html(f"""
-                    <h2 style='color:#2e7d32;'>🚀 Success!</h2>
-                    <p>Hours copied for today (<b>{today_str}</b>).</p>
-                    <ul>
-                        <li><b>Project:</b> {project_id}</li>
-                        <li><b>Work Type:</b> {work_type_id}</li>
-                        <li><b>Hours:</b> 8.0</li>
-                    </ul>
-                """)
+                self._send_html(f"🚀 <b>Success!</b> Copied to Project: {project_id}")
             else:
-                self._send_html(f"❌ <b>AFAS rejected the copy:</b> {post_resp.status_code}<br>{post_resp.text}")
+                # This will show us EXACTLY why AFAS is still grumpy
+                self._send_html(f"❌ <b>AFAS Error:</b> {post_resp.text}")
 
         except Exception as e:
-            self._send_html(f"❌ <b>Critical Error:</b> {str(e)}")
+            self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
 
     def _send_html(self, message):
         self.send_response(200)
