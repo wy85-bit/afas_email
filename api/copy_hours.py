@@ -18,29 +18,30 @@ class handler(BaseHTTPRequestHandler):
         }
 
         try:
-            # 1. FETCH THE TEMPLATE
-            get_url = (f"{BASE_URL}/connectors/Profit_Employees?"
-                       f"filterfieldids=Medewerker&filtervalues={EMPLOYEE_ID}&take=1")
+            # 1. FETCH ACTUAL WORK DATA (From Profit_Realization)
+            # This ensures we get a REAL Project ID (PrId) and Work Type (UvId)
+            get_url = (f"{BASE_URL}/connectors/Profit_Realization?"
+                       f"filterfieldids=EmployeeId&filtervalues={EMPLOYEE_ID}&take=1")
             
             get_resp = requests.get(get_url, headers=headers)
-            rows = get_resp.json().get('rows', [])
+            
+            if get_resp.status_code != 200:
+                self._send_html(f"❌ Error fetching template: {get_resp.status_code}")
+                return
 
+            rows = get_resp.json().get('rows', [])
             if not rows:
-                self._send_html("❌ Template not found in Profit_Employees.")
+                self._send_html("⚠️ No previous hours found to copy. Please enter one day manually in AFAS first!")
                 return
 
             template = rows[0]
             
-            # Use the exact values from your successful "Success" screen!
-            # We use .get() to ensure we don't crash if a field is missing.
-            project_id = template.get("PrId")
-            work_type_id = template.get("UvId")
+            # 2. EXTRACT THE MAGIC VALUES
+            # These names must match the columns in Profit_Realization exactly
+            project_id = template.get("Project") or template.get("PrId")
+            work_type = template.get("WorkType") or template.get("UvId")
             
-            if not project_id:
-                self._send_html(f"❌ Found record, but 'PrId' (Project) was empty. Data: {json.dumps(template)}")
-                return
-
-            # 2. PREPARE THE POST
+            # 3. CONSTRUCT THE POST (To PtRealization)
             today_str = datetime.now().strftime('%Y-%m-%dT00:00:00')
             
             payload = {
@@ -48,27 +49,26 @@ class handler(BaseHTTPRequestHandler):
                     {
                         "Element": {
                             "Fields": {
-                                "EmId": EMPLOYEE_ID,
-                                "Da": today_str,
-                                "PrId": str(project_id).strip(), # Ensure it's a clean string
-                                "UvId": str(work_type_id).strip() if work_type_id else "1", 
-                                "Un": 8.0,
-                                "Be": "Copied via Gemini"
+                                "EmId": EMPLOYEE_ID,    # Employee
+                                "Da": today_str,       # Date
+                                "PrId": project_id,    # Project
+                                "UvId": work_type,     # Work Type
+                                "Un": 8.0,             # Units/Hours
+                                "Be": "Gemini Auto-Copy" 
                             }
                         }
                     }
                 ]
             }
 
-            # 3. SEND TO PtRealization
+            # 4. EXECUTE THE COPY
             post_url = f"{BASE_URL}/connectors/PtRealization"
             post_resp = requests.post(post_url, headers=headers, data=json.dumps(payload))
 
             if post_resp.status_code in [200, 201]:
-                self._send_html(f"🚀 <b>Success!</b> Copied to Project: {project_id}")
+                self._send_html(f"🎉 <b>Success!</b> Hours copied to Project <b>{project_id}</b> for today.")
             else:
-                # This will show us EXACTLY why AFAS is still grumpy
-                self._send_html(f"❌ <b>AFAS Error:</b> {post_resp.text}")
+                self._send_html(f"❌ <b>AFAS rejected the POST:</b><br>{post_resp.text}")
 
         except Exception as e:
             self._send_html(f"❌ <b>Script Error:</b> {str(e)}")
@@ -78,6 +78,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
+
 
 # from http.server import BaseHTTPRequestHandler
 # import base64
