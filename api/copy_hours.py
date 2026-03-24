@@ -1,3 +1,65 @@
+import base64
+import requests
+import json
+from http.server import BaseHTTPRequestHandler
+
+# --- CONFIGURATION ---
+AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
+BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
+
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # 1. Prepare Authorization
+        token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
+        headers = {
+            'Authorization': f'AfasToken {token_base64}',
+            'Content-Type': 'application/json'
+        }
+
+        # 2. Define the Payload (Indentation fixed & Brackets closed)
+        payload = {
+            "PtRealization": {
+                "Element": {
+                    "Fields": {
+                        "CreateDeclarations": True,
+                        "GetPcIdAndPrId": True,
+                        "DaTi": "2026-02-20",
+                        "VaIt": "1",
+                        "ItCd": "01",
+                        "Qu": "8",
+                        "EmId": "1000994",
+                        "Ch": True,
+                        "Ap": True,
+                        "Pr": True,
+                        "PcId": "105"
+                    }
+                }
+            }
+        }
+
+        # 3. Execution Block
+        try:
+            url = f"{BASE_URL}/update/PtRealization"
+            # We send the JSON data here
+            response = requests.post(url, headers=headers, data=json.dumps(payload))
+            
+            if response.status_code == 200:
+                result = f"🎉 <b>Success!</b> Hours posted successfully.<br>Response: {response.text}"
+            else:
+                # Capturing the AFAS error message for better debugging
+                result = f"❌ <b>Failed with status {response.status_code}</b><br>AFAS says: {response.text}"
+
+        except Exception as e:
+            result = f"💥 <b>Python Error:</b> {str(e)}"
+
+        self._send_html(result)
+
+    def _send_html(self, message):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
+
 # import base64
 # import requests
 # from http.server import BaseHTTPRequestHandler
@@ -45,79 +107,79 @@
 #         self.end_headers()
 #         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
 
-import base64
-import requests
-import json
-from http.server import BaseHTTPRequestHandler
+# import base64
+# import requests
+# import json
+# from http.server import BaseHTTPRequestHandler
 
-# --- CONFIGURATION ---
-AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
-BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
+# # --- CONFIGURATION ---
+# AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
+# BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        # 1. Prepare Authorization
-        token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
-        headers = {
-            'Authorization': f'AfasToken {token_base64}',
-            'Content-Type': 'application/json'
-        }
+# class handler(BaseHTTPRequestHandler):
+#     def do_GET(self):
+#         # 1. Prepare Authorization
+#         token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
+#         headers = {
+#             'Authorization': f'AfasToken {token_base64}',
+#             'Content-Type': 'application/json'
+#         }
 
-        # 2. Define the Payload using our NEW Metadata Keys
-        # Based on your image_e4e882.png:
-        # DaTi = Datum, VaIt = Type item, ItCd = Itemcode
-        payload = {
-            "PtRealization": {
+#         # 2. Define the Payload using our NEW Metadata Keys
+#         # Based on your image_e4e882.png:
+#         # DaTi = Datum, VaIt = Type item, ItCd = Itemcode
+#         payload = {
+#             "PtRealization": {
 
-    "Element": {
+#     "Element": {
 
-      "Fields": {
+#       "Fields": {
 
-        "CreateDeclarations": true,
+#         "CreateDeclarations": true,
 
-        "GetPcIdAndPrId": true,
+#         "GetPcIdAndPrId": true,
 
-        "DaTi": "2026-02-20",
+#         "DaTi": "2026-02-20",
 
-        "VaIt": "1",
+#         "VaIt": "1",
 
-        "ItCd": "01",
+#         "ItCd": "01",
 
-        "Qu": "8",
+#         "Qu": "8",
 
-        "EmId": "1000994",
+#         "EmId": "1000994",
 
-        "Ch": true,
+#         "Ch": true,
 
-        "Ap": true,
+#         "Ap": true,
 
-        "Pr": true,
+#         "Pr": true,
 
-        "PcId": "105"
+#         "PcId": "105"
 
  
-        }
+#         }
 
-        try:
-            url = f"{BASE_URL}/update/PtRealization"
-            response = requests.post(url, headers=headers, data=json.dumps(payload))
+#         try:
+#             url = f"{BASE_URL}/update/PtRealization"
+#             response = requests.post(url, headers=headers, data=json.dumps(payload))
             
-            if response.status_code == 200:
-                result = f"🎉 <b>Success!</b> Hours posted successfully.<br>Response: {response.text}"
-            else:
-                # If it still fails, the error message will now be more specific
-                result = f"❌ <b>Failed with status {response.status_code}</b><br>AFAS says: {response.text}"
+#             if response.status_code == 200:
+#                 result = f"🎉 <b>Success!</b> Hours posted successfully.<br>Response: {response.text}"
+#             else:
+#                 # If it still fails, the error message will now be more specific
+#                 result = f"❌ <b>Failed with status {response.status_code}</b><br>AFAS says: {response.text}"
 
-        except Exception as e:
-            result = f"💥 <b>Python Error:</b> {str(e)}"
+#         except Exception as e:
+#             result = f"💥 <b>Python Error:</b> {str(e)}"
 
-        self._send_html(result)
+#         self._send_html(result)
 
-    def _send_html(self, message):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html; charset=utf-8')
-        self.end_headers()
-        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
+#     def _send_html(self, message):
+#         self.send_response(200)
+#         self.send_header('Content-type', 'text/html; charset=utf-8')
+#         self.end_headers()
+#         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
 
 # # from http.server import BaseHTTPRequestHandler
 # # import base64
