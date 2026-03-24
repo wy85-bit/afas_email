@@ -13,21 +13,23 @@ class handler(BaseHTTPRequestHandler):
         headers = {'Authorization': f'AfasToken {token_base64}', 'Content-Type': 'application/json'}
 
         try:
-            # We are removing all filters and asking for 10 rows from Profit_Realization
-            # to see if ANY data exists in that table at all.
-            url = f"{BASE_URL}/connectors/Profit_Realization?take=10"
+            # We are calling the 'describe' endpoint for the UpdateConnector
+            url = f"{BASE_URL}/metainfo/update/PtRealization"
             resp = requests.get(url, headers=headers)
             
             if resp.status_code == 200:
-                data = resp.json().get('rows', [])
-                if data:
-                    res = f"<h3>✅ SUCCESS! Found {len(data)} rows in Profit_Realization</h3>"
-                    res += "<p>Here is the first one for our blueprint:</p>"
-                    res += f"<pre style='background:#f4f4f4;padding:10px;'>{json.dumps(data[0], indent=2)}</pre>"
-                else:
-                    res = "🔍 <b>Still 0 rows.</b> This means the connector is 'online' but a Gegevensfilter is hiding the actual data from your API token."
+                meta = resp.json()
+                # Let's filter for just the mandatory fields to keep it readable
+                mandatory_fields = [
+                    {"Field": f.get("fieldId"), "Label": f.get("label"), "Type": f.get("dataType")}
+                    for f in meta.get("fields", []) if f.get("mandatory")
+                ]
+                
+                res = "<h3>as Required Fields for PtRealization</h3>"
+                res += "<p>If our POST request is missing any of these, AFAS will reject it.</p>"
+                res += f"<pre style='background:#f4f4f4;padding:10px;'>{json.dumps(mandatory_fields, indent=2)}</pre>"
             else:
-                res = f"❌ <b>Error {resp.status_code}:</b> {resp.text}"
+                res = f"❌ <b>Metadata Error:</b> {resp.status_code}<br>Your admin might need to 'unblock' the UpdateConnector definition too."
 
         except Exception as e:
             res = f"💥 <b>Crashed:</b> {str(e)}"
