@@ -1,53 +1,5 @@
-import base64
-import requests
-from http.server import BaseHTTPRequestHandler
-
-# --- CONFIGURATION ---
-AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
-BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
-
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
-        headers = {'Authorization': f'AfasToken {token_base64}', 'Content-Type': 'application/json'}
-
-        # We will try the 3 most likely URL variations
-        urls = [
-            f"{BASE_URL}/update/PtRealization",    # Standard
-            f"{BASE_URL}/update/ptrealization",    # Lowercase
-            f"{BASE_URL}/update/PtRealizations"    # Plural
-        ]
-
-        results = "<h3>URL Connectivity Test</h3><ul>"
-
-        for url in urls:
-            try:
-                # We send an empty request just to see if the URL "exists" (404 vs 400/500)
-                resp = requests.post(url, headers=headers, json={})
-                status = resp.status_code
-                
-                if status == 404:
-                    results += f"<li>❌ {url} -> <b>NOT FOUND (404)</b></li>"
-                elif status == 401:
-                    results += f"<li>🔑 {url} -> <b>AUTH ERROR (401)</b></li>"
-                else:
-                    # Anything other than 404 means the URL works!
-                    results += f"<li>✅ {url} -> <b>FOUND (Status {status})</b></li>"
-            except Exception as e:
-                results += f"<li>💥 {url} -> Error: {str(e)}</li>"
-
-        results += "</ul>"
-        self._send_html(results)
-
-    def _send_html(self, message):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html; charset=utf-8')
-        self.end_headers()
-        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
-
 # import base64
 # import requests
-# import json
 # from http.server import BaseHTTPRequestHandler
 
 # # --- CONFIGURATION ---
@@ -56,51 +8,116 @@ class handler(BaseHTTPRequestHandler):
 
 # class handler(BaseHTTPRequestHandler):
 #     def do_GET(self):
-#         # 1. Prepare Authorization
 #         token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
-#         headers = {
-#             'Authorization': f'AfasToken {token_base64}',
-#             'Content-Type': 'application/json'
-#         }
+#         headers = {'Authorization': f'AfasToken {token_base64}', 'Content-Type': 'application/json'}
 
-#         # 2. Define the Payload using our NEW Metadata Keys
-#         # Based on your image_e4e882.png:
-#         # DaTi = Datum, VaIt = Type item, ItCd = Itemcode
-#         payload = {
-#             "PtRealization": {
-#                 "Element": {
-#                     "Fields": {
-#                         "DaTi": "2026-03-24",  # Mandatory: Date
-#                         "VaIt": 1,             # Mandatory: Type (1 = Work/Hours)
-#                         "ItCd": "VV",         # Mandatory: Itemcode (Check if 'ADV' is correct for you)
-#                         "EmId": "1000994",     # Employee ID
-#                         "PrId": "105",         # Project ID
-#                         "QuAn": 8.0            # Quantity (Hours)
-#                     }
-#                 }
-#             }
-#         }
+#         # We will try the 3 most likely URL variations
+#         urls = [
+#             f"{BASE_URL}/update/PtRealization",    # Standard
+#             f"{BASE_URL}/update/ptrealization",    # Lowercase
+#             f"{BASE_URL}/update/PtRealizations"    # Plural
+#         ]
 
-#         try:
-#             url = f"{BASE_URL}/update/PtRealization"
-#             response = requests.post(url, headers=headers, data=json.dumps(payload))
-            
-#             if response.status_code == 200:
-#                 result = f"🎉 <b>Success!</b> Hours posted successfully.<br>Response: {response.text}"
-#             else:
-#                 # If it still fails, the error message will now be more specific
-#                 result = f"❌ <b>Failed with status {response.status_code}</b><br>AFAS says: {response.text}"
+#         results = "<h3>URL Connectivity Test</h3><ul>"
 
-#         except Exception as e:
-#             result = f"💥 <b>Python Error:</b> {str(e)}"
+#         for url in urls:
+#             try:
+#                 # We send an empty request just to see if the URL "exists" (404 vs 400/500)
+#                 resp = requests.post(url, headers=headers, json={})
+#                 status = resp.status_code
+                
+#                 if status == 404:
+#                     results += f"<li>❌ {url} -> <b>NOT FOUND (404)</b></li>"
+#                 elif status == 401:
+#                     results += f"<li>🔑 {url} -> <b>AUTH ERROR (401)</b></li>"
+#                 else:
+#                     # Anything other than 404 means the URL works!
+#                     results += f"<li>✅ {url} -> <b>FOUND (Status {status})</b></li>"
+#             except Exception as e:
+#                 results += f"<li>💥 {url} -> Error: {str(e)}</li>"
 
-#         self._send_html(result)
+#         results += "</ul>"
+#         self._send_html(results)
 
 #     def _send_html(self, message):
 #         self.send_response(200)
 #         self.send_header('Content-type', 'text/html; charset=utf-8')
 #         self.end_headers()
 #         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
+
+import base64
+import requests
+import json
+from http.server import BaseHTTPRequestHandler
+
+# --- CONFIGURATION ---
+AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
+BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
+
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # 1. Prepare Authorization
+        token_base64 = base64.b64encode(AFAS_TOKEN_XML.encode('utf-8')).decode('utf-8')
+        headers = {
+            'Authorization': f'AfasToken {token_base64}',
+            'Content-Type': 'application/json'
+        }
+
+        # 2. Define the Payload using our NEW Metadata Keys
+        # Based on your image_e4e882.png:
+        # DaTi = Datum, VaIt = Type item, ItCd = Itemcode
+        payload = {
+            "PtRealization": {
+
+    "Element": {
+
+      "Fields": {
+
+        "CreateDeclarations": true,
+
+        "GetPcIdAndPrId": true,
+
+        "DaTi": "2026-02-20",
+
+        "VaIt": "1",
+
+        "ItCd": "01",
+
+        "Qu": "8",
+
+        "EmId": "1000994",
+
+        "Ch": true,
+
+        "Ap": true,
+
+        "Pr": true,
+
+        "PcId": "105"
+
+ 
+        }
+
+        try:
+            url = f"{BASE_URL}/update/PtRealization"
+            response = requests.post(url, headers=headers, data=json.dumps(payload))
+            
+            if response.status_code == 200:
+                result = f"🎉 <b>Success!</b> Hours posted successfully.<br>Response: {response.text}"
+            else:
+                # If it still fails, the error message will now be more specific
+                result = f"❌ <b>Failed with status {response.status_code}</b><br>AFAS says: {response.text}"
+
+        except Exception as e:
+            result = f"💥 <b>Python Error:</b> {str(e)}"
+
+        self._send_html(result)
+
+    def _send_html(self, message):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
 
 # # from http.server import BaseHTTPRequestHandler
 # # import base64
