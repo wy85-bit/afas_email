@@ -26,7 +26,7 @@ class handler(BaseHTTPRequestHandler):
                         "DaTi": "2026-02-20",
                         "VaIt": "1",
                         "ItCd": "01",
-                        "Qu": "8",
+                        "QuAn": 8.0,,
                         "EmId": "1000994",
                         "Ch": True,
                         "Ap": True,
