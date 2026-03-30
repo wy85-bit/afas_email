@@ -16,26 +16,26 @@ class handler(BaseHTTPRequestHandler):
             'Content-Type': 'application/json'
         }
 
-        # 2. Define the Payload (Indentation fixed & Brackets closed)
+        # 2. Define the Payload (Cleanly Aligned)
         payload = {
             "PtRealization": {
                 "Element": {
                     "Fields": {
-                             "CreateDeclarations": true,
-        "ApprovWorkflow": true,
-        "GetPcIdAndPrId": true,
-        "DaTi": "2026-03-31",
-        "VaIt": "1",
-        "ItCd": "01",
-        "Qu": "8",
-        "EmId": "1000994",
-        "PrId": "",
-        "StId": "",
-        "Ap": true,
-        "Pr": true,
-        "StTi": "17:00:00",
-        "EnTi": "17:30:00",
-        "PcId": "105"
+                        "CreateDeclarations": True,
+                        "ApprovWorkflow": True,
+                        "GetPcIdAndPrId": True,
+                        "DaTi": "2026-03-31",
+                        "VaIt": "1",
+                        "ItCd": "01",
+                        "Qu": "8",
+                        "EmId": "1000994",
+                        "PrId": "",
+                        "StId": "",
+                        "Ap": True,
+                        "Pr": True,
+                        "StTi": "17:00:00",
+                        "EnTi": "17:30:00",
+                        "PcId": "105"
                     }
                 }
             }
@@ -63,6 +63,7 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
+
 
 # import base64
 # import requests
