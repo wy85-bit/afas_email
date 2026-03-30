@@ -15,33 +15,39 @@ class handler(BaseHTTPRequestHandler):
             'Content-Type': 'application/json'
         }
 
+        # Restored the mandatory PtRealization/Element/Fields structure
         payload = {
-           "CreateDeclarations": true,
-        "ApprovWorkflow": true,
-        "GetPcIdAndPrId": true,
-        "DaTi": "2026-03-31",
-        "VaIt": "1",
-        "ItCd": "01",
-        "Qu": "8",
-        "EmId": "1000994",
-        "PrId": "",
-        "StId": "",
-        "Ap": true,
-        "Pr": true,
-        "StTi": "17:00:00",
-        "EnTi": "17:30:00",
-        "PcId": "105"
+            "PtRealization": {
+                "Element": {
+                    "Fields": {
+                        "CreateDeclarations": True,
+                        "ApprovWorkflow": True,
+                        "GetPcIdAndPrId": True,
+                        "DaTi": "2026-03-31",
+                        "VaIt": "1",
+                        "ItCd": "01",
+                        "Qu": "8",
+                        "EmId": "1000994",
+                        "PrId": "",
+                        "StId": "",
+                        "Ap": True,
+                        "Pr": True,
+                        "StTi": "17:00:00",
+                        "EnTi": "17:30:00",
+                        "PcId": "105"
+                    }
+                }
+            }
         }
 
         try:
-            # TRYING THE LOWERCASE URL VERSION
+            # Using the lowercase URL as we discussed earlier
             url = f"{BASE_URL}/update/ptrealization" 
             response = requests.post(url, headers=headers, data=json.dumps(payload))
             
             if response.status_code == 200:
                 result = f"🎉 <b>Success!</b> Response: {response.text}"
             else:
-                # This will tell us if it's still a 404 or something else (like 400)
                 result = f"❌ <b>Status {response.status_code}</b><br>AFAS says: {response.text}"
 
         except Exception as e:
