@@ -21,17 +21,21 @@ class handler(BaseHTTPRequestHandler):
             "PtRealization": {
                 "Element": {
                     "Fields": {
-                        "CreateDeclarations": True,
-                        "GetPcIdAndPrId": True,
-                        "DaTi": "2026-02-20",
-                        "VaIt": "1",
-                        "ItCd": "01",
-                        "QuAn": 8.0,
-                        "EmId": "1000994",
-                        "Ch": True,
-                        "Ap": True,
-                        "Pr": True,
-                        "PcId": "105"
+                             "CreateDeclarations": true,
+        "ApprovWorkflow": true,
+        "GetPcIdAndPrId": true,
+        "DaTi": "2026-03-31",
+        "VaIt": "1",
+        "ItCd": "01",
+        "Qu": "8",
+        "EmId": "1000994",
+        "PrId": "",
+        "StId": "",
+        "Ap": true,
+        "Pr": true,
+        "StTi": "17:00:00",
+        "EnTi": "17:30:00",
+        "PcId": "105"
                     }
                 }
             }
