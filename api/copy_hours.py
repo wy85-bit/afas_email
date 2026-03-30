@@ -4,7 +4,7 @@ import json
 from http.server import BaseHTTPRequestHandler
 
 # --- CONFIGURATION ---
-AFAS_TOKEN_XML = """<token><version>1</version><data>84096424308C40DE98332B354EAC1F08F3AAC830633E4E9890D255A41C153140</data></token>"""
+AFAS_TOKEN_XML = """<token><version>1</version><data>C036B7BB7FB047A99D9A07A03EFA9B51A8392DB18BD54C52BC923293C691E1F7</data></token>"""
 BASE_URL = "https://90114.resttest.afas.online/ProfitRestServices"
 
 class handler(BaseHTTPRequestHandler):
