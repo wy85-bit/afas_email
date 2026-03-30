@@ -22,9 +22,8 @@ class handler(BaseHTTPRequestHandler):
                 "Element": {
                     "Fields": {
                         "CreateDeclarations": True,
-                        "ApprovWorkflow": True,
                         "GetPcIdAndPrId": True,
-                        "DaTi": "2026-03-31",
+                        "DaTi": "2026-02-20",
                         "VaIt": "1",
                         "ItCd": "01",
                         "Qu": "8",
@@ -32,8 +31,6 @@ class handler(BaseHTTPRequestHandler):
                         "Ch": True,
                         "Ap": True,
                         "Pr": True,
-                        "StTi": "17:00:00",
-                        "EnTi": "17:30:00",
                         "PcId": "105"
                     }
                 }
@@ -62,7 +59,6 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
         self.wfile.write(f"<html><body style='font-family:sans-serif;padding:30px;'>{message}</body></html>".encode())
-
 
 # import base64
 # import requests
